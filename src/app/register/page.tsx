@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiErrorMessage } from "@/lib/api-response";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(toApiUrl("/api/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -44,7 +46,7 @@ export default function RegisterPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        setError(result.error || "Erreur lors de l'inscription");
+        setError(getApiErrorMessage(result, "Erreur lors de l'inscription"));
         setLoading(false);
         return;
       }

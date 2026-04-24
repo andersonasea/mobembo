@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Bus, Users, Minus, Plus, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bus, Users, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 
 interface ScheduleData {
   id: string;
@@ -22,6 +24,7 @@ interface ScheduleData {
     company: { id: string; name: string };
   };
   bus: { plateNumber: string; model: string | null; totalSeats: number };
+  seatSelections?: { seatNumber: number }[];
 }
 
 export default function SchedulePage() {
@@ -29,16 +32,21 @@ export default function SchedulePage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
-  const [seats, setSeats] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/schedules/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setSchedule(data);
+    fetch(toApiUrl(`/api/schedules/${id}`))
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          setError(getApiErrorMessage(data, "Impossible de charger les informations"));
+          setLoading(false);
+          return;
+        }
+        setSchedule(getApiData(data));
         setLoading(false);
       })
       .catch(() => {
@@ -53,29 +61,51 @@ export default function SchedulePage() {
       return;
     }
 
+    if (selectedSeats.length === 0) {
+      setError("Choisissez au moins une place");
+      setBooking(false);
+      return;
+    }
+
     setBooking(true);
     setError("");
 
     try {
-      const res = await fetch("/api/bookings", {
+      const res = await fetch(toApiUrl("/api/bookings"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId: id, seatsBooked: seats }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.user?.backendToken
+            ? { Authorization: `Bearer ${session.user.backendToken}` }
+            : {}),
+        },
+        body: JSON.stringify({ scheduleId: id, selectedSeats }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Erreur lors de la réservation");
+        setError(getApiErrorMessage(data, "Erreur lors de la réservation"));
         setBooking(false);
         return;
       }
 
-      router.push(`/booking/${data.id}/payment`);
+      router.push(`/booking/${getApiData<{ id: string }>(data).id}/payment`);
     } catch {
       setError("Erreur de connexion");
       setBooking(false);
     }
+  }
+
+  function toggleSeat(seatNumber: number) {
+    if (!schedule) return;
+    const takenSet = new Set((schedule.seatSelections ?? []).map((s) => s.seatNumber));
+    if (takenSet.has(seatNumber)) return;
+    setSelectedSeats((prev) =>
+      prev.includes(seatNumber)
+        ? prev.filter((seat) => seat !== seatNumber)
+        : [...prev, seatNumber].sort((a, b) => a - b)
+    );
   }
 
   if (loading) {
@@ -95,7 +125,9 @@ export default function SchedulePage() {
   }
 
   const pricePerSeat = schedule.route.price;
-  const totalPrice = pricePerSeat * seats;
+  const totalPrice = pricePerSeat * selectedSeats.length;
+  const takenSeats = new Set((schedule.seatSelections ?? []).map((s) => s.seatNumber));
+  const allSeatNumbers = Array.from({ length: schedule.bus.totalSeats }, (_, i) => i + 1);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
@@ -157,32 +189,41 @@ export default function SchedulePage() {
         {/* Seat selection */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Nombre de places</CardTitle>
+            <CardTitle className="text-lg">Choisir les places</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center gap-6">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setSeats(Math.max(1, seats - 1))}
-                disabled={seats <= 1}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="text-4xl font-bold text-gray-900">{seats}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setSeats(Math.min(schedule.availableSeats, seats + 1))}
-                disabled={seats >= schedule.availableSeats}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
+              {allSeatNumbers.map((seatNumber) => {
+                const isTaken = takenSeats.has(seatNumber);
+                const isSelected = selectedSeats.includes(seatNumber);
+                return (
+                  <button
+                    key={seatNumber}
+                    type="button"
+                    disabled={isTaken || booking}
+                    onClick={() => toggleSeat(seatNumber)}
+                    className={`rounded-md border px-2 py-2 text-sm font-medium transition ${
+                      isTaken
+                        ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                        : isSelected
+                          ? "border-orange-500 bg-orange-50 text-orange-700"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-orange-300"
+                    }`}
+                  >
+                    {seatNumber}
+                  </button>
+                );
+              })}
             </div>
             <p className="mt-2 text-center text-sm text-gray-500">
-              {seats} place{seats > 1 ? "s" : ""} &times;{" "}
+              {selectedSeats.length} place{selectedSeats.length > 1 ? "s" : ""} &times;{" "}
               {new Intl.NumberFormat("fr-CD").format(pricePerSeat)} CDF
             </p>
+            {selectedSeats.length > 0 && (
+              <p className="mt-1 text-center text-sm text-gray-500">
+                Places choisies: {selectedSeats.join(", ")}
+              </p>
+            )}
           </CardContent>
         </Card>
 

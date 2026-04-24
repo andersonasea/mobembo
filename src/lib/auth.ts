@@ -1,8 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+import { getServerApiUrl } from "@/lib/api-url";
+import { getApiData } from "@/lib/api-response";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -16,25 +16,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        try {
+          const response = await fetch(`${getServerApiUrl()}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
 
-        if (!user) return null;
+          if (!response.ok) return null;
 
-        const isPasswordValid = await compare(
-          credentials.password as string,
-          user.password
-        );
+          const payload = getApiData((await response.json()) as {
+            data: {
+              token: string;
+              user: { id: string; name: string; email: string; role: string };
+            };
+          });
 
-        if (!isPasswordValid) return null;
+          if (!payload?.token || !payload.user) return null;
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        };
+          return {
+            id: payload.user.id,
+            name: payload.user.name,
+            email: payload.user.email,
+            role: payload.user.role,
+            backendToken: payload.token,
+          };
+        } catch {
+          return null;
+        }
       },
     }),
   ],

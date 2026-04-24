@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Plus, Loader2, ArrowRight } from "lucide-react";
+import { Clock, Plus, Loader2, ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 
 interface ScheduleData {
   id: string;
@@ -15,11 +18,12 @@ interface ScheduleData {
   availableSeats: number;
   status: string;
   route: {
+    id: string;
     departure: string;
     destination: string;
     company: { name: string };
   };
-  bus: { plateNumber: string; model: string | null; totalSeats: number };
+  bus: { id: string; plateNumber: string; model: string | null; totalSeats: number };
 }
 
 interface RouteData {
@@ -38,25 +42,40 @@ interface BusData {
 }
 
 export default function SchedulesPage() {
+  const { data: session } = useSession();
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [buses, setBuses] = useState<BusData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    routeId: "",
+    busId: "",
+    departureTime: "",
+    arrivalTime: "",
+    status: "ACTIVE",
+  });
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  async function loadData() {
     Promise.all([
-      fetch("/api/schedules").then((r) => r.json()),
-      fetch("/api/routes").then((r) => r.json()),
-      fetch("/api/buses").then((r) => r.json()),
+      fetch(toApiUrl("/api/schedules")).then((r) => r.json()),
+      fetch(toApiUrl("/api/routes")).then((r) => r.json()),
+      fetch(toApiUrl("/api/buses")).then((r) => r.json()),
     ]).then(([scheduleData, routeData, busData]) => {
-      setSchedules(scheduleData);
-      setRoutes(routeData);
-      setBuses(busData);
+      setSchedules(getApiData(scheduleData));
+      setRoutes(getApiData(routeData));
+      setBuses(getApiData(busData));
       setLoading(false);
     });
+  }
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -72,23 +91,104 @@ export default function SchedulesPage() {
       arrivalTime: formData.get("arrivalTime") || undefined,
     };
 
-    const res = await fetch("/api/schedules", {
+    const res = await fetch(toApiUrl("/api/schedules"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
       body: JSON.stringify(data),
     });
 
     if (!res.ok) {
       const err = await res.json();
-      setError(err.error);
+      setError(getApiErrorMessage(err, "Erreur lors de la création"));
       setSaving(false);
       return;
     }
 
     setSaving(false);
     setShowForm(false);
-    const updated = await fetch("/api/schedules").then((r) => r.json());
-    setSchedules(updated);
+    await loadData();
+  }
+
+  function toInputDate(value: string | null) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const tzOffset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - tzOffset * 60000);
+    return localDate.toISOString().slice(0, 16);
+  }
+
+  function startEdit(schedule: ScheduleData) {
+    setEditingId(schedule.id);
+    setError("");
+    setEditForm({
+      routeId: schedule.route.id,
+      busId: schedule.bus.id,
+      departureTime: toInputDate(schedule.departureTime),
+      arrivalTime: toInputDate(schedule.arrivalTime),
+      status: schedule.status,
+    });
+  }
+
+  async function handleUpdate(scheduleId: string) {
+    setUpdatingId(scheduleId);
+    setError("");
+    const res = await fetch(toApiUrl(`/api/schedules/${scheduleId}`), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        routeId: editForm.routeId,
+        busId: editForm.busId,
+        departureTime: editForm.departureTime,
+        arrivalTime: editForm.arrivalTime || undefined,
+        status: editForm.status,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la modification"));
+      setUpdatingId(null);
+      return;
+    }
+
+    setUpdatingId(null);
+    setEditingId(null);
+    await loadData();
+  }
+
+  async function handleDelete(scheduleId: string) {
+    const confirmed = window.confirm("Supprimer cet horaire ? Cette action est irréversible.");
+    if (!confirmed) return;
+
+    setDeletingId(scheduleId);
+    setError("");
+    const res = await fetch(toApiUrl(`/api/schedules/${scheduleId}`), {
+      method: "DELETE",
+      headers: session?.user?.backendToken
+        ? { Authorization: `Bearer ${session.user.backendToken}` }
+        : undefined,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la suppression"));
+      setDeletingId(null);
+      return;
+    }
+
+    setDeletingId(null);
+    await loadData();
   }
 
   const statusLabel: Record<string, string> = {
@@ -212,8 +312,98 @@ export default function SchedulesPage() {
                     <Badge variant={statusVariant(schedule.status)}>
                       {statusLabel[schedule.status] || schedule.status}
                     </Badge>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => startEdit(schedule)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Modifier
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1"
+                      disabled={deletingId === schedule.id}
+                      onClick={() => handleDelete(schedule.id)}
+                    >
+                      {deletingId === schedule.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Supprimer
+                    </Button>
                   </div>
                 </div>
+                {editingId === schedule.id && (
+                  <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-3">
+                    <select
+                      value={editForm.routeId}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, routeId: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="">Sélectionner un trajet</option>
+                      {routes.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.company.name}: {r.departure} → {r.destination}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={editForm.busId}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, busId: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="">Sélectionner un bus</option>
+                      {buses.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.company.name} - {b.plateNumber} ({b.totalSeats} places)
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      type="datetime-local"
+                      value={editForm.departureTime}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, departureTime: e.target.value }))}
+                    />
+                    <Input
+                      type="datetime-local"
+                      value={editForm.arrivalTime}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, arrivalTime: e.target.value }))}
+                    />
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="ACTIVE">Actif</option>
+                      <option value="CANCELLED">Annulé</option>
+                      <option value="COMPLETED">Terminé</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={updatingId === schedule.id}
+                        onClick={() => handleUpdate(schedule.id)}
+                      >
+                        {updatingId === schedule.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Enregistrer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Building2, Plus, Loader2 } from "lucide-react";
+import { Building2, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 
 interface Company {
   id: string;
@@ -20,16 +23,28 @@ interface Company {
 }
 
 export default function CompaniesPage() {
+  const { data: session } = useSession();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    description: "",
+    isActive: true,
+  });
   const [error, setError] = useState("");
 
   const fetchCompanies = useCallback(async () => {
-    const res = await fetch("/api/companies");
+    const res = await fetch(toApiUrl("/api/companies"));
     const data = await res.json();
-    setCompanies(data);
+    setCompanies(getApiData(data));
     setLoading(false);
   }, []);
 
@@ -50,21 +65,97 @@ export default function CompaniesPage() {
       description: formData.get("description") || undefined,
     };
 
-    const res = await fetch("/api/companies", {
+    const res = await fetch(toApiUrl("/api/companies"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
       body: JSON.stringify(data),
     });
 
     if (!res.ok) {
       const err = await res.json();
-      setError(err.error);
+      setError(getApiErrorMessage(err, "Erreur lors de la création"));
       setSaving(false);
       return;
     }
 
     setSaving(false);
     setShowForm(false);
+    fetchCompanies();
+  }
+
+  function startEdit(company: Company) {
+    setEditingId(company.id);
+    setError("");
+    setEditForm({
+      name: company.name,
+      email: company.email,
+      phone: company.phone,
+      address: company.address ?? "",
+      description: company.description ?? "",
+      isActive: company.isActive,
+    });
+  }
+
+  async function handleUpdate(companyId: string) {
+    setUpdatingId(companyId);
+    setError("");
+
+    const res = await fetch(toApiUrl(`/api/companies/${companyId}`), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone,
+        address: editForm.address || undefined,
+        description: editForm.description || undefined,
+        isActive: editForm.isActive,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la modification"));
+      setUpdatingId(null);
+      return;
+    }
+
+    setUpdatingId(null);
+    setEditingId(null);
+    fetchCompanies();
+  }
+
+  async function handleDelete(companyId: string) {
+    const confirmed = window.confirm("Supprimer cette société ? Cette action est irréversible.");
+    if (!confirmed) return;
+
+    setDeletingId(companyId);
+    setError("");
+    const res = await fetch(toApiUrl(`/api/companies/${companyId}`), {
+      method: "DELETE",
+      headers: session?.user?.backendToken
+        ? { Authorization: `Bearer ${session.user.backendToken}` }
+        : undefined,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la suppression"));
+      setDeletingId(null);
+      return;
+    }
+
+    setDeletingId(null);
     fetchCompanies();
   }
 
@@ -154,6 +245,91 @@ export default function CompaniesPage() {
                   <Badge variant="secondary">{company._count.buses} bus</Badge>
                   <Badge variant="secondary">{company._count.routes} destination(s)</Badge>
                 </div>
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => startEdit(company)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Modifier
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="gap-1"
+                    disabled={deletingId === company.id}
+                    onClick={() => handleDelete(company.id)}
+                  >
+                    {deletingId === company.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Supprimer
+                  </Button>
+                </div>
+                {editingId === company.id && (
+                  <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-3">
+                    <Input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                      placeholder="Nom"
+                    />
+                    <Input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                      placeholder="Email"
+                    />
+                    <Input
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      placeholder="Téléphone"
+                    />
+                    <Input
+                      value={editForm.address}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
+                      placeholder="Adresse"
+                    />
+                    <Input
+                      value={editForm.description}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Description"
+                    />
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={editForm.isActive}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({ ...prev, isActive: e.target.checked }))
+                        }
+                      />
+                      Société active
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={updatingId === company.id}
+                        onClick={() => handleUpdate(company.id)}
+                      >
+                        {updatingId === company.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Enregistrer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

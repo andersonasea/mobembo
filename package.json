@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "next build",
+    "build:backend": "npm --prefix backend run build",
     "start": "next start",
+    "start:backend": "npm --prefix backend run start",
     "lint": "eslint",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
@@ -38,11 +41,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

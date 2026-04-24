@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { Building2, Bus, MapPin, Clock, LayoutDashboard } from "lucide-react";
+import { Building2, Bus, MapPin, Clock, LayoutDashboard, CreditCard } from "lucide-react";
 
 const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -9,6 +9,7 @@ const adminLinks = [
   { href: "/admin/buses", label: "Bus", icon: Bus },
   { href: "/admin/routes", label: "Destinations", icon: MapPin },
   { href: "/admin/schedules", label: "Horaires", icon: Clock },
+  { href: "/admin/bookings", label: "Réservations", icon: CreditCard },
 ];
 
 export default async function AdminLayout({

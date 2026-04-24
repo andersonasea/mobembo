@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Plus, Loader2, ArrowRight } from "lucide-react";
+import { MapPin, Plus, Loader2, ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 
 interface RouteData {
   id: string;
@@ -14,7 +17,7 @@ interface RouteData {
   destination: string;
   price: number;
   durationMinutes: number | null;
-  company: { name: string };
+  company: { id: string; name: string };
 }
 
 interface Company {
@@ -23,22 +26,37 @@ interface Company {
 }
 
 export default function RoutesPage() {
+  const { data: session } = useSession();
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    departure: "",
+    destination: "",
+    price: 0,
+    durationMinutes: "",
+    companyId: "",
+  });
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  async function loadData() {
     Promise.all([
-      fetch("/api/routes").then((r) => r.json()),
-      fetch("/api/companies").then((r) => r.json()),
+      fetch(toApiUrl("/api/routes")).then((r) => r.json()),
+      fetch(toApiUrl("/api/companies")).then((r) => r.json()),
     ]).then(([routeData, companyData]) => {
-      setRoutes(routeData);
-      setCompanies(companyData);
+      setRoutes(getApiData(routeData));
+      setCompanies(getApiData(companyData));
       setLoading(false);
     });
+  }
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -55,23 +73,97 @@ export default function RoutesPage() {
       companyId: formData.get("companyId"),
     };
 
-    const res = await fetch("/api/routes", {
+    const res = await fetch(toApiUrl("/api/routes"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
       body: JSON.stringify(data),
     });
 
     if (!res.ok) {
       const err = await res.json();
-      setError(err.error);
+      setError(getApiErrorMessage(err, "Erreur lors de la création"));
       setSaving(false);
       return;
     }
 
     setSaving(false);
     setShowForm(false);
-    const updated = await fetch("/api/routes").then((r) => r.json());
-    setRoutes(updated);
+    await loadData();
+  }
+
+  function startEdit(route: RouteData) {
+    setEditingId(route.id);
+    setError("");
+    setEditForm({
+      departure: route.departure,
+      destination: route.destination,
+      price: route.price,
+      durationMinutes: route.durationMinutes ? String(route.durationMinutes) : "",
+      companyId: route.company.id,
+    });
+  }
+
+  async function handleUpdate(routeId: string) {
+    setUpdatingId(routeId);
+    setError("");
+    const res = await fetch(toApiUrl(`/api/routes/${routeId}`), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        departure: editForm.departure,
+        destination: editForm.destination,
+        price: Number(editForm.price),
+        durationMinutes: editForm.durationMinutes
+          ? Number(editForm.durationMinutes)
+          : undefined,
+        companyId: editForm.companyId,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la modification"));
+      setUpdatingId(null);
+      return;
+    }
+
+    setUpdatingId(null);
+    setEditingId(null);
+    await loadData();
+  }
+
+  async function handleDelete(routeId: string) {
+    const confirmed = window.confirm("Supprimer cette destination ? Cette action est irréversible.");
+    if (!confirmed) return;
+
+    setDeletingId(routeId);
+    setError("");
+    const res = await fetch(toApiUrl(`/api/routes/${routeId}`), {
+      method: "DELETE",
+      headers: session?.user?.backendToken
+        ? { Authorization: `Bearer ${session.user.backendToken}` }
+        : undefined,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setError(getApiErrorMessage(err, "Erreur lors de la suppression"));
+      setDeletingId(null);
+      return;
+    }
+
+    setDeletingId(null);
+    await loadData();
   }
 
   return (
@@ -161,10 +253,95 @@ export default function RoutesPage() {
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <Badge variant="secondary">{route.company.name}</Badge>
-                  <span className="font-semibold text-orange-600">
-                    {new Intl.NumberFormat("fr-CD").format(route.price)} CDF
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-orange-600">
+                      {new Intl.NumberFormat("fr-CD").format(route.price)} CDF
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => startEdit(route)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Modifier
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1"
+                      disabled={deletingId === route.id}
+                      onClick={() => handleDelete(route.id)}
+                    >
+                      {deletingId === route.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Supprimer
+                    </Button>
+                  </div>
                 </div>
+                {editingId === route.id && (
+                  <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-3">
+                    <Input
+                      value={editForm.departure}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, departure: e.target.value }))}
+                      placeholder="Lieu de départ"
+                    />
+                    <Input
+                      value={editForm.destination}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, destination: e.target.value }))}
+                      placeholder="Destination"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={editForm.price}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, price: Number(e.target.value || 0) }))}
+                      placeholder="Prix (CDF)"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={editForm.durationMinutes}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, durationMinutes: e.target.value }))}
+                      placeholder="Durée (minutes)"
+                    />
+                    <select
+                      value={editForm.companyId}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, companyId: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="">Sélectionner une société</option>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={updatingId === route.id}
+                        onClick={() => handleUpdate(route.id)}
+                      >
+                        {updatingId === route.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Enregistrer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

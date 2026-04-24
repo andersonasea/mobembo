@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Loader2, CheckCircle, Smartphone } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 
 interface BookingData {
   id: string;
   seatsBooked: number;
+  seatSelections?: { seatNumber: number }[];
   totalPrice: number;
   status: string;
   schedule: {
@@ -35,6 +39,7 @@ const PAYMENT_METHODS = [
 export default function PaymentPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [method, setMethod] = useState<string>("");
   const [phone, setPhone] = useState("");
@@ -44,17 +49,21 @@ export default function PaymentPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/bookings/${id}`)
+    fetch(toApiUrl(`/api/bookings/${id}`), {
+      headers: session?.user?.backendToken
+        ? { Authorization: `Bearer ${session.user.backendToken}` }
+        : undefined,
+    })
       .then((res) => res.json())
       .then((data) => {
-        setBooking(data);
+        setBooking(getApiData(data));
         setLoading(false);
       })
       .catch(() => {
         setError("Impossible de charger la réservation");
         setLoading(false);
       });
-  }, [id]);
+  }, [id, session?.user?.backendToken]);
 
   async function handlePayment(e: React.FormEvent) {
     e.preventDefault();
@@ -62,9 +71,14 @@ export default function PaymentPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/payments", {
+      const res = await fetch(toApiUrl("/api/payments"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.user?.backendToken
+            ? { Authorization: `Bearer ${session.user.backendToken}` }
+            : {}),
+        },
         body: JSON.stringify({
           bookingId: id,
           method,
@@ -75,7 +89,7 @@ export default function PaymentPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Erreur lors du paiement");
+        setError(getApiErrorMessage(data, "Erreur lors du paiement"));
         setPaying(false);
         return;
       }
@@ -164,7 +178,11 @@ export default function PaymentPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Places</span>
-                <span className="font-medium">{booking.seatsBooked}</span>
+                <span className="font-medium">
+                  {booking.seatSelections?.length
+                    ? booking.seatSelections.map((seat) => seat.seatNumber).join(", ")
+                    : booking.seatsBooked}
+                </span>
               </div>
               <div className="border-t pt-2 mt-2 flex justify-between">
                 <span className="font-semibold text-gray-900">Total</span>

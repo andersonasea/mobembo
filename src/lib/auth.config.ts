@@ -11,6 +11,7 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: string }).role;
+        token.backendToken = (user as { backendToken?: string }).backendToken;
       }
       return token;
     },
@@ -18,6 +19,7 @@ export const authConfig: NextAuthConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         (session.user as { role: string }).role = token.role as string;
+        session.user.backendToken = token.backendToken as string | undefined;
       }
       return session;
     },
