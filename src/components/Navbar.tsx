@@ -37,7 +37,7 @@ export function Navbar() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: "/login" })}
                 className="gap-2"
               >
                 <LogOut className="h-4 w-4" />
