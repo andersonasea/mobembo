@@ -15,7 +15,10 @@ export function formatPrice(price: number | string): string {
 }
 
 export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return typeof date === "string" ? date : "—";
+  }
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "long",
     timeStyle: "short",
@@ -23,7 +26,10 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatTime(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return typeof date === "string" ? date : "—";
+  }
   return new Intl.DateTimeFormat("fr-FR", {
     timeStyle: "short",
   }).format(d);

@@ -1,5 +1,93 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Frontend / Backend Separation
+
+The project now contains:
+
+- `src/*`: Next.js frontend (web/admin).
+- `backend/*`: standalone Express API meant to be consumed by mobile clients.
+
+### Run frontend
+
+```bash
+npm run dev
+```
+
+### Run backend API
+
+```bash
+npm run dev:backend
+```
+
+The Express API runs on `http://localhost:4000` by default and exposes:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET/POST /api/companies`
+- `GET/POST /api/buses`
+- `GET/POST /api/routes`
+- `GET/POST /api/schedules`
+- `POST /api/bookings`
+- `GET /api/bookings/:id`
+- `POST /api/payments`
+
+Protected endpoints use `Authorization: Bearer <token>` with JWT returned by login/register.
+
+For frontend -> backend communication, configure:
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:4000
+API_URL=http://localhost:4000
+```
+
+- `NEXT_PUBLIC_API_URL`: optional; when set, client-side `fetch` calls the backend URL directly.
+- `API_URL`: used server-side (NextAuth) and as the target for Next.js rewrites of `/api/v1/*` (defaults to `http://localhost:4000` if unset).
+
+Without `NEXT_PUBLIC_API_URL`, the browser calls `/api/v1/...` on the Next dev server; `next.config.ts` rewrites those requests to `API_URL`.
+
+Backend CORS can be configured with:
+
+```bash
+ALLOWED_ORIGINS=http://localhost:3000,https://ton-frontend.com
+```
+
+Notes:
+- Requests without `Origin` are accepted (typical for native mobile clients).
+- Browser requests are allowed only when their origin is in `ALLOWED_ORIGINS`.
+
+## API Response Format
+
+The Express API now uses a uniform JSON contract:
+
+- Success: `{ "data": ..., "meta": { ... } }`
+- Error: `{ "error": { "code": "SOME_CODE", "message": "Human readable message", "details": ... } }`
+
+## API Versioning
+
+The backend exposes versioned endpoints under:
+
+- `/api/v1/...` (recommended for all new clients)
+
+Compatibility is currently kept for legacy:
+
+- `/api/...` (temporary alias to `v1`)
+
+## Swagger / OpenAPI
+
+Interactive API documentation is available at:
+
+- `http://localhost:4000/docs`
+
+Raw OpenAPI JSON:
+
+- `http://localhost:4000/docs/openapi.json`
+
+Optional env var for server URLs in the spec:
+
+```bash
+PUBLIC_API_BASE_URL=http://localhost:4000
+```
+
 ## Getting Started
 
 First, run the development server:

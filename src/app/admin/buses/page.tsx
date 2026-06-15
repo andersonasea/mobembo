@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toApiUrl } from "@/lib/api-url";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
+import { apiAuthHeaders } from "@/lib/api-auth-headers";
+import { isCompanyAdmin } from "@/lib/admin-access";
 
 interface BusData {
   id: string;
@@ -26,6 +28,10 @@ interface Company {
 
 export default function BusesPage() {
   const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role;
+  const companyAdmin = isCompanyAdmin(role);
+  const userCompanyId = (session?.user as { companyId?: string | null })?.companyId;
+  const authHeaders = apiAuthHeaders(session?.user?.backendToken);
   const [buses, setBuses] = useState<BusData[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,19 +49,28 @@ export default function BusesPage() {
   const [error, setError] = useState("");
 
   async function loadData() {
-    Promise.all([
-      fetch(toApiUrl("/api/buses")).then((r) => r.json()),
-      fetch(toApiUrl("/api/companies")).then((r) => r.json()),
-    ]).then(([busData, companyData]) => {
-      setBuses(getApiData(busData));
+    const requests: [Promise<Response>, Promise<Response>?] = [
+      fetch(toApiUrl("/api/buses"), { headers: authHeaders }),
+    ];
+    if (!companyAdmin) {
+      requests.push(fetch(toApiUrl("/api/companies"), { headers: authHeaders }));
+    }
+    const [busRes, companyRes] = await Promise.all(requests);
+    const busData = await busRes.json();
+    setBuses(getApiData(busData));
+    if (companyRes) {
+      const companyData = await companyRes.json();
       setCompanies(getApiData(companyData));
-      setLoading(false);
-    });
+    } else if (userCompanyId) {
+      setCompanies([]);
+    }
+    setLoading(false);
   }
 
   useEffect(() => {
+    if (!session) return;
     loadData();
-  }, []);
+  }, [session?.user?.backendToken]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -67,16 +82,14 @@ export default function BusesPage() {
       plateNumber: formData.get("plateNumber"),
       model: formData.get("model") || undefined,
       totalSeats: Number(formData.get("totalSeats")),
-      companyId: formData.get("companyId"),
+      companyId: companyAdmin ? userCompanyId : formData.get("companyId"),
     };
 
     const res = await fetch(toApiUrl("/api/buses"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(session?.user?.backendToken
-          ? { Authorization: `Bearer ${session.user.backendToken}` }
-          : {}),
+        ...authHeaders,
       },
       body: JSON.stringify(data),
     });
@@ -101,9 +114,7 @@ export default function BusesPage() {
     setError("");
     const res = await fetch(toApiUrl(`/api/buses/${busId}`), {
       method: "DELETE",
-      headers: session?.user?.backendToken
-        ? { Authorization: `Bearer ${session.user.backendToken}` }
-        : undefined,
+      headers: authHeaders,
     });
 
     if (!res.ok) {
@@ -135,15 +146,13 @@ export default function BusesPage() {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...(session?.user?.backendToken
-          ? { Authorization: `Bearer ${session.user.backendToken}` }
-          : {}),
+        ...authHeaders,
       },
       body: JSON.stringify({
         plateNumber: editForm.plateNumber,
         model: editForm.model || undefined,
         totalSeats: Number(editForm.totalSeats),
-        companyId: editForm.companyId,
+        ...(companyAdmin ? {} : { companyId: editForm.companyId }),
       }),
     });
 
@@ -179,20 +188,22 @@ export default function BusesPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="companyId">Société *</Label>
-                <select
-                  id="companyId"
-                  name="companyId"
-                  required
-                  className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="">Sélectionner une société</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+              {!companyAdmin && (
+                <div className="space-y-2">
+                  <Label htmlFor="companyId">Société *</Label>
+                  <select
+                    id="companyId"
+                    name="companyId"
+                    required
+                    className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">Sélectionner une société</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="plateNumber">Numéro de plaque *</Label>
                 <Input id="plateNumber" name="plateNumber" required placeholder="Ex: KIN-1234-AB" />
@@ -295,18 +306,20 @@ export default function BusesPage() {
                       }
                       placeholder="Nombre de places"
                     />
-                    <select
-                      value={editForm.companyId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, companyId: e.target.value }))}
-                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      <option value="">Sélectionner une société</option>
-                      {companies.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    {!companyAdmin && (
+                      <select
+                        value={editForm.companyId}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, companyId: e.target.value }))}
+                        className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="">Sélectionner une société</option>
+                        {companies.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"

@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
+  
 }
 
 datasource db {
@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   CLIENT
   ADMIN
+  COMPANY_ADMIN
 }
 
 enum BookingStatus {
@@ -38,14 +39,16 @@ enum ScheduleStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String            @id @default(cuid())
   name          String
-  email         String    @unique
+  email         String            @unique
   phone         String?
   password      String
-  role          Role      @default(CLIENT)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          Role              @default(CLIENT)
+  companyId     String?
+  company       TransportCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   bookings      Booking[]
 
   @@map("users")
@@ -64,6 +67,7 @@ model TransportCompany {
   updatedAt     DateTime  @updatedAt
   buses         Bus[]
   routes        Route[]
+  admins        User[]
 
   @@map("transport_companies")
 }
@@ -108,6 +112,7 @@ model Schedule {
   status         ScheduleStatus @default(ACTIVE)
   createdAt      DateTime       @default(now())
   bookings       Booking[]
+  seatSelections SeatSelection[]
 
   @@map("schedules")
 }
@@ -124,8 +129,23 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   payment     Payment?
+  seatSelections SeatSelection[]
 
   @@map("bookings")
+}
+
+model SeatSelection {
+  id         String   @id @default(cuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  seatNumber Int
+  createdAt  DateTime @default(now())
+
+  @@unique([scheduleId, seatNumber])
+  @@index([bookingId])
+  @@map("seat_selections")
 }
 
 model Payment {

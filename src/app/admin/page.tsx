@@ -1,33 +1,56 @@
 import { Building2, Bus, MapPin, Users, CreditCard } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { isCompanyAdmin, isPlatformAdmin } from "@/lib/admin-access";
 import { Card, CardContent } from "@/components/ui/card";
 
-async function getStats() {
+async function getStats(companyId?: string | null) {
+  const companyFilter = companyId ? { companyId } : undefined;
+  const bookingFilter = companyId
+    ? { status: "CONFIRMED" as const, schedule: { route: { companyId } } }
+    : { status: "CONFIRMED" as const };
+
   const [companies, buses, routes, users, bookings] = await Promise.all([
-    prisma.transportCompany.count(),
-    prisma.bus.count(),
-    prisma.route.count(),
-    prisma.user.count({ where: { role: "CLIENT" } }),
-    prisma.booking.count({ where: { status: "CONFIRMED" } }),
+    companyId
+      ? prisma.transportCompany.count({ where: { id: companyId } })
+      : prisma.transportCompany.count(),
+    prisma.bus.count({ where: companyFilter }),
+    prisma.route.count({ where: companyFilter }),
+    companyId
+      ? Promise.resolve(0)
+      : prisma.user.count({ where: { role: "CLIENT" } }),
+    prisma.booking.count({ where: bookingFilter }),
   ]);
   return { companies, buses, routes, users, bookings };
 }
 
 export default async function AdminDashboard() {
-  const stats = await getStats();
+  const session = await auth();
+  const role = (session?.user as { role?: string })?.role;
+  const companyId = (session?.user as { companyId?: string | null })?.companyId;
+  const companyName = (session?.user as { companyName?: string | null })?.companyName;
+  const stats = await getStats(isCompanyAdmin(role) ? companyId : undefined);
 
   const cards = [
-    { label: "Sociétés", value: stats.companies, icon: Building2, color: "bg-blue-100 text-blue-600" },
+    ...(isPlatformAdmin(role)
+      ? [{ label: "Sociétés", value: stats.companies, icon: Building2, color: "bg-blue-100 text-blue-600" }]
+      : []),
     { label: "Bus", value: stats.buses, icon: Bus, color: "bg-orange-100 text-orange-600" },
     { label: "Destinations", value: stats.routes, icon: MapPin, color: "bg-green-100 text-green-600" },
-    { label: "Utilisateurs", value: stats.users, icon: Users, color: "bg-purple-100 text-purple-600" },
+    ...(isPlatformAdmin(role)
+      ? [{ label: "Utilisateurs", value: stats.users, icon: Users, color: "bg-purple-100 text-purple-600" }]
+      : []),
     { label: "Réservations", value: stats.bookings, icon: CreditCard, color: "bg-amber-100 text-amber-600" },
   ];
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p className="mt-1 text-sm text-gray-500">Vue d&apos;ensemble du système Mobembo</p>
+      <p className="mt-1 text-sm text-gray-500">
+        {companyName
+          ? `Vue d'ensemble — ${companyName}`
+          : "Vue d'ensemble du système Mobembo"}
+      </p>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {cards.map((card) => (

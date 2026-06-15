@@ -1,11 +1,15 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { Prisma, PrismaClient, Role } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
-
+//const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({
+    connectionString: process.env.DATABASE_URL!,
+  }),
+});
 async function main() {
   const adminPassword = await hash("admin123", 12);
 
@@ -17,7 +21,7 @@ async function main() {
       email: "admin@mobembo.com",
       phone: "+243000000000",
       password: adminPassword,
-      role: "ADMIN",
+      role: Role.ADMIN,
     },
   });
 
@@ -33,7 +37,7 @@ async function main() {
       email: "client@test.com",
       phone: "+243999999999",
       password: clientPassword,
-      role: "CLIENT",
+      role: Role.CLIENT,
     },
   });
 
@@ -111,8 +115,33 @@ async function main() {
     },
   });
 
+  const companyAdminPassword = await hash("transkin123", 12);
+
+  const companyAdminUpdate = {
+    role: "COMPANY_ADMIN",
+    companyId: company.id,
+  } as unknown as Prisma.UserUncheckedUpdateInput;
+
+  const companyAdminCreate = {
+    name: "Admin TransKin Express",
+    email: "admin@transkin.com",
+    phone: "+243822222222",
+    password: companyAdminPassword,
+    role: "COMPANY_ADMIN",
+    companyId: company.id,
+  } as unknown as Prisma.UserUncheckedCreateInput;
+
+  const companyAdmin = await prisma.user.upsert({
+    where: { email: "admin@transkin.com" },
+    update: companyAdminUpdate,
+    create: companyAdminCreate,
+  });
+
+  console.log("Admin société créé:", companyAdmin.email);
+
   console.log("Données de démonstration créées avec succès !");
-  console.log(`\nConnexion admin: admin@mobembo.com / admin123`);
+  console.log(`\nConnexion admin Mobembo: admin@mobembo.com / admin123`);
+  console.log(`Connexion admin TransKin: admin@transkin.com / transkin123`);
   console.log(`Connexion client: client@test.com / client123`);
 }
 

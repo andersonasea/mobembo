@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toApiUrl } from "@/lib/api-url";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
+import { apiAuthHeaders } from "@/lib/api-auth-headers";
 
 interface ScheduleData {
   id: string;
@@ -43,6 +44,7 @@ interface BusData {
 
 export default function SchedulesPage() {
   const { data: session } = useSession();
+  const authHeaders = apiAuthHeaders(session?.user?.backendToken);
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [buses, setBuses] = useState<BusData[]>([]);
@@ -62,21 +64,22 @@ export default function SchedulesPage() {
   const [error, setError] = useState("");
 
   async function loadData() {
-    Promise.all([
-      fetch(toApiUrl("/api/schedules")).then((r) => r.json()),
-      fetch(toApiUrl("/api/routes")).then((r) => r.json()),
-      fetch(toApiUrl("/api/buses")).then((r) => r.json()),
-    ]).then(([scheduleData, routeData, busData]) => {
-      setSchedules(getApiData(scheduleData));
-      setRoutes(getApiData(routeData));
-      setBuses(getApiData(busData));
-      setLoading(false);
-    });
+    const headers = authHeaders;
+    const [scheduleRes, routeRes, busRes] = await Promise.all([
+      fetch(toApiUrl("/api/schedules"), { headers }),
+      fetch(toApiUrl("/api/routes"), { headers }),
+      fetch(toApiUrl("/api/buses"), { headers }),
+    ]);
+    setSchedules(getApiData(await scheduleRes.json()));
+    setRoutes(getApiData(await routeRes.json()));
+    setBuses(getApiData(await busRes.json()));
+    setLoading(false);
   }
 
   useEffect(() => {
+    if (!session) return;
     loadData();
-  }, []);
+  }, [session?.user?.backendToken]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -95,9 +98,7 @@ export default function SchedulesPage() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(session?.user?.backendToken
-          ? { Authorization: `Bearer ${session.user.backendToken}` }
-          : {}),
+        ...authHeaders,
       },
       body: JSON.stringify(data),
     });
@@ -142,9 +143,7 @@ export default function SchedulesPage() {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...(session?.user?.backendToken
-          ? { Authorization: `Bearer ${session.user.backendToken}` }
-          : {}),
+        ...authHeaders,
       },
       body: JSON.stringify({
         routeId: editForm.routeId,
@@ -175,9 +174,7 @@ export default function SchedulesPage() {
     setError("");
     const res = await fetch(toApiUrl(`/api/schedules/${scheduleId}`), {
       method: "DELETE",
-      headers: session?.user?.backendToken
-        ? { Authorization: `Bearer ${session.user.backendToken}` }
-        : undefined,
+      headers: authHeaders,
     });
 
     if (!res.ok) {

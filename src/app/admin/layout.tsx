@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { canAccessAdmin, isPlatformAdmin } from "@/lib/admin-access";
 import { Building2, Bus, MapPin, Clock, LayoutDashboard, CreditCard } from "lucide-react";
 
-const adminLinks = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/companies", label: "Sociétés", icon: Building2 },
-  { href: "/admin/buses", label: "Bus", icon: Bus },
-  { href: "/admin/routes", label: "Destinations", icon: MapPin },
-  { href: "/admin/schedules", label: "Horaires", icon: Clock },
-  { href: "/admin/bookings", label: "Réservations", icon: CreditCard },
+const allAdminLinks = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, platformOnly: false },
+  { href: "/admin/companies", label: "Sociétés", icon: Building2, platformOnly: true },
+  { href: "/admin/buses", label: "Bus", icon: Bus, platformOnly: false },
+  { href: "/admin/routes", label: "Destinations", icon: MapPin, platformOnly: false },
+  { href: "/admin/schedules", label: "Horaires", icon: Clock, platformOnly: false },
+  { href: "/admin/bookings", label: "Réservations", icon: CreditCard, platformOnly: false },
 ];
 
 export default async function AdminLayout({
@@ -18,15 +19,25 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+  const role = (session?.user as { role?: string })?.role;
+  const companyName = (session?.user as { companyName?: string | null })?.companyName;
 
-  if (!session || (session.user as { role: string }).role !== "ADMIN") {
+  if (!session || !canAccessAdmin(role)) {
     redirect("/login");
   }
+
+  const adminLinks = allAdminLinks.filter(
+    (link) => !link.platformOnly || isPlatformAdmin(role)
+  );
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
       <aside className="hidden w-64 border-r border-gray-200 bg-white p-6 lg:block">
-        <h2 className="mb-6 text-lg font-semibold text-gray-900">Administration</h2>
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">Administration</h2>
+        {companyName && (
+          <p className="mb-6 text-sm text-orange-600">{companyName}</p>
+        )}
+        {!companyName && <div className="mb-6" />}
         <nav className="space-y-1">
           {adminLinks.map((link) => (
             <Link

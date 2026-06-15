@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Loader2, CheckCircle, Smartphone } from "lucide-react";
 import { useSession } from "next-auth/react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,12 @@ interface BookingData {
     };
     bus: { model: string | null; plateNumber: string };
   };
+  payment?: {
+    id: string;
+    status: string;
+    method: string;
+    transactionRef: string | null;
+  };
 }
 
 const PAYMENT_METHODS = [
@@ -45,7 +52,9 @@ export default function PaymentPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [paymentInitiated, setPaymentInitiated] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -94,11 +103,79 @@ export default function PaymentPage() {
         return;
       }
 
-      setSuccess(true);
+      setPaymentInitiated(true);
+      setPaying(false);
     } catch {
       setError("Erreur de connexion");
       setPaying(false);
     }
+  }
+
+  useEffect(() => {
+    if (!paymentInitiated || paymentConfirmed) return;
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await fetch(toApiUrl(`/api/bookings/${id}`), {
+          headers: session?.user?.backendToken
+            ? { Authorization: `Bearer ${session.user.backendToken}` }
+            : undefined,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const updatedBooking = getApiData<BookingData>(data);
+        setBooking(updatedBooking);
+        if (updatedBooking.status === "CONFIRMED") {
+          setPaymentConfirmed(true);
+          clearInterval(intervalId);
+        }
+      } catch {
+        // Ignore intermittent polling failures.
+      }
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [id, paymentConfirmed, paymentInitiated, session?.user?.backendToken]);
+
+  useEffect(() => {
+    if (!paymentConfirmed || !booking) return;
+
+    const qrPayload = {
+      reservationId: booking.id,
+      reservationStatus: booking.status,
+      company: booking.schedule.route.company.name,
+      departure: booking.schedule.route.departure,
+      destination: booking.schedule.route.destination,
+      departureTime: booking.schedule.departureTime,
+      seats: booking.seatSelections?.length
+        ? booking.seatSelections.map((seat) => seat.seatNumber)
+        : booking.seatsBooked,
+      totalPriceCDF: booking.totalPrice,
+      paymentStatus: booking.payment?.status ?? "UNKNOWN",
+      paymentMethod: booking.payment?.method ?? "UNKNOWN",
+      paymentReference: booking.payment?.transactionRef ?? null,
+      passenger: {
+        id: session?.user?.id ?? null,
+        name: session?.user?.name ?? null,
+        email: session?.user?.email ?? null,
+      },
+      generatedAt: new Date().toISOString(),
+    };
+
+    QRCode.toDataURL(JSON.stringify(qrPayload), {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 420,
+    })
+      .then((url) => setQrCodeDataUrl(url))
+      .catch(() => setQrCodeDataUrl(""));
+  }, [booking, paymentConfirmed, session?.user?.email, session?.user?.id, session?.user?.name]);
+
+  function downloadQrCode() {
+    if (!qrCodeDataUrl || !booking) return;
+    const link = document.createElement("a");
+    link.href = qrCodeDataUrl;
+    link.download = `reservation-${booking.id}.png`;
+    link.click();
   }
 
   if (loading) {
@@ -109,17 +186,46 @@ export default function PaymentPage() {
     );
   }
 
-  if (success) {
+  if (paymentInitiated) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle className="h-10 w-10 text-green-600" />
-        </div>
-        <h1 className="mt-6 text-2xl font-bold text-gray-900">Paiement initié !</h1>
-        <p className="mt-3 text-gray-500">
-          Une demande de paiement a été envoyée sur votre téléphone.
-          Confirmez le paiement sur votre appareil pour finaliser la réservation.
-        </p>
+        {paymentConfirmed ? (
+          <>
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+            <h1 className="mt-6 text-2xl font-bold text-gray-900">Paiement confirmé !</h1>
+            <p className="mt-3 text-gray-500">
+              Votre paiement a été validé. La réservation est confirmée.
+            </p>
+            {qrCodeDataUrl ? (
+              <div className="mt-6 rounded-xl border bg-white p-4 shadow-sm">
+                <p className="mb-3 text-sm font-medium text-gray-700">QR code du billet</p>
+                <img
+                  src={qrCodeDataUrl}
+                  alt="QR code de la réservation"
+                  className="mx-auto h-56 w-56 rounded-lg border bg-white p-2"
+                />
+                <Button onClick={downloadQrCode} className="mt-4 w-full" type="button">
+                  Télécharger le QR code
+                </Button>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">Génération du QR code...</p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
+              <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+            </div>
+            <h1 className="mt-6 text-2xl font-bold text-gray-900">Paiement initié !</h1>
+            <p className="mt-3 text-gray-500">
+              Une demande de paiement a été envoyée sur votre téléphone.
+              Confirmez-la puis patientez quelques secondes.
+            </p>
+          </>
+        )}
         <div className="mt-8 flex justify-center gap-4">
           <Link href="/">
             <Button variant="outline">Retour à l&apos;accueil</Button>

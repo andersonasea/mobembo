@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toApiUrl } from "@/lib/api-url";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
+import { apiAuthHeaders } from "@/lib/api-auth-headers";
+import { isCompanyAdmin } from "@/lib/admin-access";
 
 interface BookingData {
   id: string;
@@ -63,6 +65,8 @@ function paymentStatusVariant(status: NonNullable<BookingData["payment"]>["statu
 
 export default function AdminBookingsPage() {
   const { data: session } = useSession();
+  const companyAdmin = isCompanyAdmin((session?.user as { role?: string })?.role);
+  const authHeaders = apiAuthHeaders(session?.user?.backendToken);
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,9 +79,7 @@ export default function AdminBookingsPage() {
       setLoading(true);
       try {
         const res = await fetch(toApiUrl("/api/bookings"), {
-          headers: session?.user?.backendToken
-            ? { Authorization: `Bearer ${session.user.backendToken}` }
-            : undefined,
+          headers: authHeaders,
         });
         const payload = await res.json();
         if (!res.ok) {
@@ -118,21 +120,23 @@ export default function AdminBookingsPage() {
       <p className="mt-1 text-sm text-gray-500">Toutes les réservations avec leur statut</p>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500">Filtrer par société</p>
-          <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="ALL">Toutes les sociétés</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!companyAdmin && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-gray-500">Filtrer par société</p>
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="ALL">Toutes les sociétés</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="space-y-1">
           <p className="text-xs font-medium text-gray-500">Filtrer par statut</p>
           <select

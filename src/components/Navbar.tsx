@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Bus, LogOut, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { canAccessAdmin } from "@/lib/admin-access";
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -21,7 +22,7 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {session ? (
             <>
-              {(session.user as { role: string }).role === "ADMIN" && (
+              {canAccessAdmin((session.user as { role: string }).role) && (
                 <Link href="/admin">
                   <Button variant="ghost" size="sm" className="gap-2">
                     <Shield className="h-4 w-4" />

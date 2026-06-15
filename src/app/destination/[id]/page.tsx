@@ -1,29 +1,40 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { ArrowLeft, Clock, Users, ArrowRight, Calendar } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import { getServerApiUrl } from "@/lib/api-url";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice, formatDate } from "@/lib/utils";
 
-async function getRouteWithSchedules(id: string) {
-  return prisma.route.findUnique({
-    where: { id },
-    include: {
-      company: { select: { id: true, name: true } },
-      schedules: {
-        where: {
-          status: "ACTIVE",
-          departureTime: { gte: new Date() },
-          availableSeats: { gt: 0 },
-        },
-        include: {
-          bus: { select: { plateNumber: true, model: true, totalSeats: true } },
-        },
-        orderBy: { departureTime: "asc" },
-      },
-    },
+export const dynamic = "force-dynamic";
+
+type RouteWithSchedules = {
+  id: string;
+  departure: string;
+  destination: string;
+  price: number;
+  durationMinutes: number | null;
+  company: { id: string; name: string };
+  schedules: Array<{
+    id: string;
+    departureTime: string;
+    availableSeats: number;
+    bus: { plateNumber: string; model: string | null; totalSeats: number };
+  }>;
+};
+
+async function getRouteWithSchedules(id: string): Promise<RouteWithSchedules | null> {
+  noStore();
+  const base = getServerApiUrl();
+  const res = await fetch(`${base}/api/routes/${encodeURIComponent(id)}`, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
   });
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  const body = (await res.json()) as { data?: RouteWithSchedules };
+  return body.data ?? null;
 }
 
 export default async function DestinationPage({
@@ -55,12 +66,13 @@ export default async function DestinationPage({
         </h1>
         <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
           <span className="font-semibold text-lg text-orange-600">
-            {formatPrice(route.price.toNumber())} / place
+            {formatPrice(route.price)} / place
           </span>
-          {route.durationMinutes && (
+          {route.durationMinutes != null && route.durationMinutes > 0 && (
             <span className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              {Math.floor(route.durationMinutes / 60)}h{route.durationMinutes % 60 > 0 ? `${route.durationMinutes % 60}min` : ""}
+              {Math.floor(route.durationMinutes / 60)}h
+              {route.durationMinutes % 60 > 0 ? `${route.durationMinutes % 60}min` : ""}
             </span>
           )}
         </div>
@@ -100,7 +112,13 @@ export default async function DestinationPage({
                     </div>
                     <div className="text-right">
                       <Badge
-                        variant={schedule.availableSeats > 10 ? "success" : schedule.availableSeats > 3 ? "warning" : "destructive"}
+                        variant={
+                          schedule.availableSeats > 10
+                            ? "success"
+                            : schedule.availableSeats > 3
+                              ? "warning"
+                              : "destructive"
+                        }
                       >
                         <Users className="mr-1 h-3 w-3" />
                         {schedule.availableSeats} place{schedule.availableSeats > 1 ? "s" : ""}

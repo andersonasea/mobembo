@@ -31,7 +31,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const payload = getApiData((await response.json()) as {
             data: {
               token: string;
-              user: { id: string; name: string; email: string; role: string };
+              user: {
+                id: string;
+                name: string;
+                email: string;
+                role: string;
+                companyId?: string | null;
+                companyName?: string | null;
+              };
             };
           });
 
@@ -42,6 +49,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: payload.user.name,
             email: payload.user.email,
             role: payload.user.role,
+            companyId: payload.user.companyId ?? null,
+            companyName: payload.user.companyName ?? null,
             backendToken: payload.token,
           };
         } catch {
