@@ -103,6 +103,35 @@ export default function PaymentPage() {
         return;
       }
 
+      const paymentResult = getApiData<{
+        status: string;
+        bookingStatus?: string;
+      }>(data);
+
+      const bookingRes = await fetch(toApiUrl(`/api/bookings/${id}`), {
+        headers: session?.user?.backendToken
+          ? { Authorization: `Bearer ${session.user.backendToken}` }
+          : undefined,
+      });
+      if (bookingRes.ok) {
+        const bookingData = await bookingRes.json();
+        const updatedBooking = getApiData<BookingData>(bookingData);
+        setBooking(updatedBooking);
+        if (
+          updatedBooking.status === "CONFIRMED" ||
+          updatedBooking.payment?.status === "SUCCESS" ||
+          paymentResult.bookingStatus === "CONFIRMED" ||
+          paymentResult.status === "SUCCESS"
+        ) {
+          setPaymentConfirmed(true);
+        }
+      } else if (
+        paymentResult.bookingStatus === "CONFIRMED" ||
+        paymentResult.status === "SUCCESS"
+      ) {
+        setPaymentConfirmed(true);
+      }
+
       setPaymentInitiated(true);
       setPaying(false);
     } catch {
@@ -124,7 +153,10 @@ export default function PaymentPage() {
         const data = await res.json();
         const updatedBooking = getApiData<BookingData>(data);
         setBooking(updatedBooking);
-        if (updatedBooking.status === "CONFIRMED") {
+        if (
+          updatedBooking.status === "CONFIRMED" ||
+          updatedBooking.payment?.status === "SUCCESS"
+        ) {
           setPaymentConfirmed(true);
           clearInterval(intervalId);
         }
