@@ -21,6 +21,17 @@ export function getApiData<T>(payload: T | ApiSuccess<T>): T {
 export function getApiErrorMessage(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") return fallback;
   const error = (payload as ApiErrorShape).error;
-  if (error?.message) return error.message;
-  return fallback;
+  if (!error?.message) return fallback;
+
+  if (typeof error.details === "string" && error.details.trim()) {
+    try {
+      const parsed = JSON.parse(error.details) as { message?: string; Comment?: string };
+      const detailMessage = parsed.message ?? parsed.Comment;
+      if (detailMessage) return `${error.message} — ${detailMessage}`;
+    } catch {
+      return `${error.message} — ${error.details}`;
+    }
+  }
+
+  return error.message;
 }
