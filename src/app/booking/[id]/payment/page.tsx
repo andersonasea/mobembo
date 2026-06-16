@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Loader2, CheckCircle, Smartphone } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -43,10 +43,13 @@ const PAYMENT_METHODS = [
   { id: "AFRI_MONEY", name: "Afri Money", color: "bg-blue-600" },
 ] as const;
 
+const POLL_STEPS_MS = [4000, 6000, 8000, 10000, 12000];
+const MAX_POLL_DURATION_MS = 90000;
+
 export default function PaymentPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { data: session } = useSession();
+  const backendToken = session?.user?.backendToken;
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [method, setMethod] = useState<string>("");
   const [phone, setPhone] = useState("");
@@ -59,9 +62,7 @@ export default function PaymentPage() {
 
   useEffect(() => {
     fetch(toApiUrl(`/api/bookings/${id}`), {
-      headers: session?.user?.backendToken
-        ? { Authorization: `Bearer ${session.user.backendToken}` }
-        : undefined,
+      headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
     })
       .then((res) => res.json())
       .then((data) => {
@@ -72,7 +73,7 @@ export default function PaymentPage() {
         setError("Impossible de charger la réservation");
         setLoading(false);
       });
-  }, [id, session?.user?.backendToken]);
+  }, [backendToken, id]);
 
   async function handlePayment(e: React.FormEvent) {
     e.preventDefault();
@@ -109,9 +110,7 @@ export default function PaymentPage() {
       }>(data);
 
       const bookingRes = await fetch(toApiUrl(`/api/bookings/${id}`), {
-        headers: session?.user?.backendToken
-          ? { Authorization: `Bearer ${session.user.backendToken}` }
-          : undefined,
+        headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
       });
       if (bookingRes.ok) {
         const bookingData = await bookingRes.json();
@@ -142,31 +141,46 @@ export default function PaymentPage() {
 
   useEffect(() => {
     if (!paymentInitiated || paymentConfirmed) return;
-    const intervalId = setInterval(async () => {
+    let cancelled = false;
+    const startedAt = Date.now();
+    let step = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollOnce = async () => {
+      if (cancelled) return;
+      if (Date.now() - startedAt > MAX_POLL_DURATION_MS) return;
+
       try {
         const res = await fetch(toApiUrl(`/api/bookings/${id}`), {
-          headers: session?.user?.backendToken
-            ? { Authorization: `Bearer ${session.user.backendToken}` }
-            : undefined,
+          headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        const updatedBooking = getApiData<BookingData>(data);
-        setBooking(updatedBooking);
-        if (
-          updatedBooking.status === "CONFIRMED" ||
-          updatedBooking.payment?.status === "SUCCESS"
-        ) {
-          setPaymentConfirmed(true);
-          clearInterval(intervalId);
+        if (res.ok) {
+          const data = await res.json();
+          const updatedBooking = getApiData<BookingData>(data);
+          setBooking(updatedBooking);
+          if (
+            updatedBooking.status === "CONFIRMED" ||
+            updatedBooking.payment?.status === "SUCCESS"
+          ) {
+            setPaymentConfirmed(true);
+            return;
+          }
         }
       } catch {
         // Ignore intermittent polling failures.
       }
-    }, 4000);
 
-    return () => clearInterval(intervalId);
-  }, [id, paymentConfirmed, paymentInitiated, session?.user?.backendToken]);
+      const waitMs = POLL_STEPS_MS[Math.min(step, POLL_STEPS_MS.length - 1)];
+      step += 1;
+      timeoutId = setTimeout(pollOnce, waitMs);
+    };
+
+    timeoutId = setTimeout(pollOnce, POLL_STEPS_MS[0]);
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [backendToken, id, paymentConfirmed, paymentInitiated]);
 
   useEffect(() => {
     if (!paymentConfirmed || !booking) return;
