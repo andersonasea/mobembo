@@ -11,7 +11,7 @@ type ApiErrorShape = {
   };
 };
 
-export function getApiData<T>(payload: T | ApiSuccess<T>): T {
+export function getApiData<T>(payload: unknown): T {
   if (payload && typeof payload === "object" && "data" in payload) {
     return (payload as ApiSuccess<T>).data;
   }

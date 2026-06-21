@@ -28,20 +28,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (!response.ok) return null;
 
-          const payload = getApiData((await response.json()) as {
-            data: {
-              token: string;
-              user: {
-                id: string;
-                name: string;
-                email: string;
-                role: string;
-                companyId?: string | null;
-                companyName?: string | null;
-                imageUrl?: string | null;
-              };
+          const payload = getApiData<{
+            token: string;
+            user: {
+              id: string;
+              name: string;
+              email: string;
+              role: string;
+              companyId?: string | null;
+              companyName?: string | null;
+              imageUrl?: string | null;
             };
-          });
+          }>(await response.json());
 
           if (!payload?.token || !payload.user) return null;
 
