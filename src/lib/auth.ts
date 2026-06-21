@@ -38,6 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 role: string;
                 companyId?: string | null;
                 companyName?: string | null;
+                imageUrl?: string | null;
               };
             };
           });
@@ -51,6 +52,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: payload.user.role,
             companyId: payload.user.companyId ?? null,
             companyName: payload.user.companyName ?? null,
+            hasImage: !!payload.user.imageUrl,
             backendToken: payload.token,
           };
         } catch {

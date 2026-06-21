@@ -8,6 +8,7 @@ declare module "next-auth" {
       companyId?: string | null;
       companyName?: string | null;
       backendToken?: string;
+      hasImage?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
     companyId?: string | null;
     companyName?: string | null;
     backendToken?: string;
+    hasImage?: boolean;
   }
 }
 
@@ -26,5 +28,6 @@ declare module "next-auth/jwt" {
     companyId?: string | null;
     companyName?: string | null;
     backendToken?: string;
+    hasImage?: boolean;
   }
 }

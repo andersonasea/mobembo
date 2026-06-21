@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { Bus, LogOut, User, Shield } from "lucide-react";
+import { Bus, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessAdmin } from "@/lib/admin-access";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -30,10 +31,10 @@ export function Navbar() {
                   </Button>
                 </Link>
               )}
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <User className="h-4 w-4" />
+              <Link href="/profile" className="flex items-center gap-2 text-sm text-gray-600 hover:text-orange-600">
+                <UserAvatar />
                 <span className="hidden sm:inline">{session.user?.name}</span>
-              </div>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"

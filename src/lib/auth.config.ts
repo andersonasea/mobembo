@@ -8,13 +8,18 @@ export const authConfig: NextAuthConfig = {
   },
   providers: [],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: string }).role;
         token.companyId = (user as { companyId?: string | null }).companyId ?? null;
         token.companyName = (user as { companyName?: string | null }).companyName ?? null;
         token.backendToken = (user as { backendToken?: string }).backendToken;
+        token.hasImage = !!(user as { hasImage?: boolean }).hasImage;
+      }
+      if (trigger === "update" && session) {
+        if (session.name !== undefined) token.name = session.name;
+        if (session.hasImage !== undefined) token.hasImage = session.hasImage;
       }
       return token;
     },
@@ -25,6 +30,8 @@ export const authConfig: NextAuthConfig = {
         session.user.companyId = token.companyId as string | null | undefined;
         session.user.companyName = token.companyName as string | null | undefined;
         session.user.backendToken = token.backendToken as string | undefined;
+        session.user.hasImage = token.hasImage as boolean | undefined;
+        if (token.name) session.user.name = token.name as string;
       }
       return session;
     },
@@ -45,7 +52,7 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
-      if (pathname.startsWith("/booking")) {
+      if (pathname.startsWith("/booking") || pathname.startsWith("/profile")) {
         return isLoggedIn;
       }
 

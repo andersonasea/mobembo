@@ -19,7 +19,7 @@ export async function proxyToBackend(
     const session = await auth();
     const token = session?.user?.backendToken;
     if (!token) {
-      return Response.json({ error: "Non autorisé" }, { status: 401 });
+      return Response.json({ error: { code: "UNAUTHORIZED", message: "Non autorisé" } }, { status: 401 });
     }
     headers.set("authorization", `Bearer ${token}`);
   }
@@ -30,8 +30,13 @@ export async function proxyToBackend(
     body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
   });
 
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.delete("content-encoding");
+  responseHeaders.delete("content-length");
+  responseHeaders.delete("transfer-encoding");
+
   return new Response(await response.arrayBuffer(), {
     status: response.status,
-    headers: response.headers,
+    headers: responseHeaders,
   });
 }
