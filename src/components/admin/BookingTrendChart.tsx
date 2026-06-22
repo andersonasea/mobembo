@@ -16,8 +16,16 @@ import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
+import { isPlatformAdmin } from "@/lib/admin-access";
 
 type PeriodPreset = "7d" | "30d" | "90d";
+
+type RouteOption = {
+  id: string;
+  departure: string;
+  destination: string;
+  company?: { id: string; name: string };
+};
 
 type TrendPoint = {
   date: string;
@@ -26,8 +34,18 @@ type TrendPoint = {
   revenue: number;
 };
 
+type RouteRanking = {
+  routeId: string;
+  departure: string;
+  destination: string;
+  companyName: string;
+  bookings: number;
+  revenue: number;
+};
+
 type TrendResponse = {
   points: TrendPoint[];
+  routeRanking: RouteRanking[];
   summary: {
     totalBookings: number;
     totalRevenue: number;
@@ -41,6 +59,7 @@ type TrendResponse = {
     to: string;
     granularity: "day" | "week" | "month";
     status: string;
+    routeId: string | null;
   };
 };
 
@@ -67,6 +86,14 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("fr-CD", { maximumFractionDigits: 0 }).format(value);
 }
 
+function routeLabel(route: RouteOption, showCompany: boolean) {
+  const line = `${route.departure} → ${route.destination}`;
+  if (showCompany && route.company?.name) {
+    return `${line} (${route.company.name})`;
+  }
+  return line;
+}
+
 function ChangeBadge({ value, label }: { value: number | null; label: string }) {
   if (value === null) {
     return <p className="text-xs text-gray-500">{label} : —</p>;
@@ -84,10 +111,25 @@ function ChangeBadge({ value, label }: { value: number | null; label: string }) 
 
 export function BookingTrendChart() {
   const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role;
+  const showCompany = isPlatformAdmin(role);
   const [preset, setPreset] = useState<PeriodPreset>("30d");
+  const [routeId, setRouteId] = useState("");
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!session?.user) return;
+    fetch("/api/routes")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const payload = await res.json();
+        setRoutes(getApiData<RouteOption[]>(payload));
+      })
+      .catch(() => setRoutes([]));
+  }, [session?.user]);
 
   const loadTrend = useCallback(async () => {
     if (!session?.user) return;
@@ -102,6 +144,7 @@ export function BookingTrendChart() {
       granularity: range.granularity,
       status: "CONFIRMED",
     });
+    if (routeId) params.set("routeId", routeId);
 
     try {
       const res = await fetch(`/api/admin/analytics/bookings-trend?${params}`);
@@ -118,37 +161,64 @@ export function BookingTrendChart() {
     } finally {
       setLoading(false);
     }
-  }, [preset, session?.user]);
+  }, [preset, routeId, session?.user]);
 
   useEffect(() => {
     loadTrend();
   }, [loadTrend]);
 
+  const selectedRoute = routes.find((r) => r.id === routeId);
+
   return (
     <Card className="mt-8">
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Tendance des réservations</CardTitle>
-          <p className="mt-1 text-sm text-gray-500">Réservations confirmées sur la période sélectionnée</p>
+      <CardHeader className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Tendance des réservations</CardTitle>
+            <p className="mt-1 text-sm text-gray-500">
+              {selectedRoute
+                ? `Ligne : ${routeLabel(selectedRoute, showCompany)}`
+                : "Toutes les lignes — réservations confirmées"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["7d", "7 jours"],
+                ["30d", "30 jours"],
+                ["90d", "90 jours"],
+              ] as const
+            ).map(([key, label]) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={preset === key ? "default" : "outline"}
+                onClick={() => setPreset(key)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["7d", "7 jours"],
-              ["30d", "30 jours"],
-              ["90d", "90 jours"],
-            ] as const
-          ).map(([key, label]) => (
-            <Button
-              key={key}
-              type="button"
-              size="sm"
-              variant={preset === key ? "default" : "outline"}
-              onClick={() => setPreset(key)}
-            >
-              {label}
-            </Button>
-          ))}
+
+        <div className="max-w-md">
+          <label htmlFor="route-filter" className="mb-1 block text-sm font-medium text-gray-700">
+            Filtrer par destination
+          </label>
+          <select
+            id="route-filter"
+            value={routeId}
+            onChange={(e) => setRouteId(e.target.value)}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          >
+            <option value="">Toutes les lignes</option>
+            {routes.map((route) => (
+              <option key={route.id} value={route.id}>
+                {routeLabel(route, showCompany)}
+              </option>
+            ))}
+          </select>
         </div>
       </CardHeader>
       <CardContent>
@@ -217,6 +287,58 @@ export function BookingTrendChart() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
+            {data.routeRanking.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold text-gray-900">Lignes les plus rentables</h3>
+                <p className="mt-1 text-xs text-gray-500">Classement par revenus sur la période sélectionnée</p>
+                <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                      <tr>
+                        <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">Ligne</th>
+                        {showCompany && <th className="px-4 py-3">Société</th>}
+                        <th className="px-4 py-3">Réservations</th>
+                        <th className="px-4 py-3">Revenus (CDF)</th>
+                        <th className="px-4 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {data.routeRanking.map((row, index) => {
+                        const isSelected = routeId === row.routeId;
+                        return (
+                          <tr
+                            key={row.routeId}
+                            className={isSelected ? "bg-orange-50" : "hover:bg-gray-50"}
+                          >
+                            <td className="px-4 py-3 font-medium text-gray-900">{index + 1}</td>
+                            <td className="px-4 py-3">
+                              {row.departure} → {row.destination}
+                            </td>
+                            {showCompany && (
+                              <td className="px-4 py-3 text-gray-600">{row.companyName}</td>
+                            )}
+                            <td className="px-4 py-3">{row.bookings}</td>
+                            <td className="px-4 py-3 font-medium">{formatCurrency(row.revenue)}</td>
+                            <td className="px-4 py-3">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isSelected ? "default" : "ghost"}
+                                onClick={() => setRouteId(isSelected ? "" : row.routeId)}
+                              >
+                                {isSelected ? "Tout voir" : "Filtrer"}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         ) : null}
       </CardContent>
