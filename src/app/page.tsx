@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TripSearchForm } from "@/components/TripSearchForm";
 
 async function getCompanies() {
   return prisma.transportCompany.findMany({
@@ -32,10 +33,15 @@ export default async function HomePage() {
               Réservez votre billet de bus en quelques clics. Choisissez votre
               société de transport, votre destination et votre horaire.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-4">
-              <Link href="#companies">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+              <Link href="#search">
                 <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 shadow-lg">
                   Réserver maintenant
+                </Button>
+              </Link>
+              <Link href="/search">
+                <Button size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                  Rechercher un billet
                 </Button>
               </Link>
               <Link href="/register">
@@ -43,6 +49,9 @@ export default async function HomePage() {
                   Créer un compte
                 </Button>
               </Link>
+            </div>
+            <div id="search" className="mx-auto mt-10 max-w-4xl scroll-mt-24">
+              <TripSearchForm variant="hero" />
             </div>
           </div>
         </div>
@@ -111,6 +120,7 @@ export default async function HomePage() {
                           <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">
                             {company.name}
                           </h3>
+                          
                           <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-gray-500">
                             {company.description || "\u00A0"}
                           </p>
