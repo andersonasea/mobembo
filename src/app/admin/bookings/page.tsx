@@ -9,6 +9,7 @@ import { toApiUrl } from "@/lib/api-url";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
 import { apiAuthHeaders } from "@/lib/api-auth-headers";
 import { isCompanyAdmin } from "@/lib/admin-access";
+import { genderLabel, type PassengerDetails } from "@/lib/passenger";
 
 interface BookingData {
   id: string;
@@ -16,6 +17,7 @@ interface BookingData {
   totalPrice: number;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
   createdAt: string;
+  seatSelections?: PassengerDetails[];
   user: {
     id: string;
     name: string;
@@ -186,6 +188,29 @@ export default function AdminBookingsPage() {
                       Places: {booking.seatsBooked} • Total:{" "}
                       {new Intl.NumberFormat("fr-CD").format(booking.totalPrice)} CDF
                     </p>
+                    {booking.seatSelections && booking.seatSelections.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {booking.seatSelections.map((seat) => (
+                          <div
+                            key={seat.seatNumber}
+                            className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                          >
+                            <span className="font-medium">Place {seat.seatNumber}</span>
+                            {seat.passengerName ? ` — ${seat.passengerName}` : ""}
+                            {seat.age != null ? ` • ${seat.age} ans` : ""}
+                            {seat.gender ? ` • ${genderLabel(seat.gender)}` : ""}
+                            {seat.needsAssistance && (
+                              <Badge variant="warning" className="ml-2">
+                                Assistance
+                              </Badge>
+                            )}
+                            {seat.needsAssistance && seat.assistanceNotes && (
+                              <p className="mt-1 text-xs text-gray-500">{seat.assistanceNotes}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-start gap-2 sm:items-end">
                     <Badge variant={bookingStatusVariant(booking.status)}>

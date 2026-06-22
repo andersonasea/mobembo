@@ -12,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toApiUrl } from "@/lib/api-url";
 import { getApiData, getApiErrorMessage } from "@/lib/api-response";
+import { genderLabel, type PassengerDetails } from "@/lib/passenger";
 
 interface BookingData {
   id: string;
   seatsBooked: number;
-  seatSelections?: { seatNumber: number }[];
+  seatSelections?: PassengerDetails[];
   totalPrice: number;
   status: string;
   schedule: {
@@ -195,6 +196,14 @@ export default function PaymentPage() {
       seats: booking.seatSelections?.length
         ? booking.seatSelections.map((seat) => seat.seatNumber)
         : booking.seatsBooked,
+      passengers: booking.seatSelections?.map((seat) => ({
+        seatNumber: seat.seatNumber,
+        name: seat.passengerName ?? null,
+        age: seat.age ?? null,
+        gender: seat.gender ?? null,
+        needsAssistance: seat.needsAssistance ?? false,
+        assistanceNotes: seat.assistanceNotes ?? null,
+      })),
       totalPriceCDF: booking.totalPrice,
       paymentStatus: booking.payment?.status ?? "UNKNOWN",
       paymentMethod: booking.payment?.method ?? "UNKNOWN",
@@ -336,6 +345,27 @@ export default function PaymentPage() {
                     : booking.seatsBooked}
                 </span>
               </div>
+              {booking.seatSelections && booking.seatSelections.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-gray-500">Passagers</p>
+                  {booking.seatSelections.map((seat) => (
+                    <div key={seat.seatNumber} className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                      <p className="font-medium text-gray-900">
+                        Place {seat.seatNumber}
+                        {seat.passengerName ? ` — ${seat.passengerName}` : ""}
+                      </p>
+                      <p className="text-gray-600">
+                        {seat.age != null ? `${seat.age} ans` : "Âge non renseigné"}
+                        {seat.gender ? ` • ${genderLabel(seat.gender)}` : ""}
+                        {seat.needsAssistance ? " • Assistance requise" : ""}
+                      </p>
+                      {seat.needsAssistance && seat.assistanceNotes && (
+                        <p className="text-xs text-gray-500">{seat.assistanceNotes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="border-t pt-2 mt-2 flex justify-between">
                 <span className="font-semibold text-gray-900">Total</span>
                 <span className="text-xl font-bold text-orange-600">
