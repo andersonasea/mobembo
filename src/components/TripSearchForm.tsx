@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toApiUrl } from "@/lib/api-url";
+import { getApiData } from "@/lib/api-response";
+import { cn } from "@/lib/utils";
 
 function todayIsoDate() {
   const d = new Date();
@@ -27,6 +30,11 @@ type TripSearchFormProps = {
   };
 };
 
+type RouteLocations = {
+  departures: string[];
+  destinations: string[];
+};
+
 export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProps) {
   const router = useRouter();
   const isHero = variant === "hero";
@@ -36,14 +44,57 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
   const [maxPrice, setMaxPrice] = useState(initial?.maxPrice ?? "");
   const [timeFrom, setTimeFrom] = useState(initial?.timeFrom ?? "");
   const [timeTo, setTimeTo] = useState(initial?.timeTo ?? "");
+  const [departures, setDepartures] = useState<string[]>([]);
+  const [destinations, setDestinations] = useState<string[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [loadingDestinations, setLoadingDestinations] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(toApiUrl("/api/search/locations"))
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        setDepartures(getApiData<RouteLocations>(data).departures);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingLocations(false));
+  }, []);
+
+  useEffect(() => {
+    if (!departure) {
+      setDestinations([]);
+      setDestination("");
+      return;
+    }
+
+    setLoadingDestinations(true);
+    const params = new URLSearchParams({ departure });
+    fetch(toApiUrl(`/api/search/locations?${params.toString()}`))
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        const next = getApiData<RouteLocations>(data).destinations;
+        setDestinations(next);
+        setDestination((current) =>
+          current && next.includes(current) ? current : next.length === 1 ? next[0]! : ""
+        );
+      })
+      .catch(() => setDestinations([]))
+      .finally(() => setLoadingDestinations(false));
+  }, [departure]);
+
+  function handleDepartureChange(value: string) {
+    setDeparture(value);
+    setDestination("");
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!departure.trim() || !destination.trim()) {
-      setError("Indiquez le départ et la destination");
+    if (!departure || !destination) {
+      setError("Choisissez le départ et la destination");
       return;
     }
     const budget = Number(maxPrice);
@@ -53,8 +104,8 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
     }
 
     const params = new URLSearchParams({
-      departure: departure.trim(),
-      destination: destination.trim(),
+      departure,
+      destination,
       date,
       maxPrice: String(budget),
     });
@@ -65,7 +116,10 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
   }
 
   const labelClass = isHero ? "text-orange-100" : "text-gray-700";
-  const inputClass = isHero ? "border-white/20 bg-white/95" : "";
+  const fieldClass = cn(
+    "flex h-10 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500",
+    isHero ? "border-white/20 bg-white/95" : "border-gray-300 bg-white"
+  );
 
   return (
     <form
@@ -81,27 +135,51 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
           <Label htmlFor="departure" className={labelClass}>
             Départ
           </Label>
-          <Input
+          <select
             id="departure"
-            placeholder="Ex: Kinshasa"
             value={departure}
-            onChange={(e) => setDeparture(e.target.value)}
-            className={inputClass}
+            onChange={(e) => handleDepartureChange(e.target.value)}
+            className={fieldClass}
             required
-          />
+            disabled={loadingLocations}
+          >
+            <option value="">
+              {loadingLocations ? "Chargement..." : "Choisir une ville"}
+            </option>
+            {departures.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="destination" className={labelClass}>
             Destination
           </Label>
-          <Input
+          <select
             id="destination"
-            placeholder="Ex: Matadi"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
-            className={inputClass}
+            className={fieldClass}
             required
-          />
+            disabled={!departure || loadingDestinations}
+          >
+            <option value="">
+              {!departure
+                ? "Choisissez d'abord le départ"
+                : loadingDestinations
+                  ? "Chargement..."
+                  : destinations.length === 0
+                    ? "Aucune destination"
+                    : "Choisir une ville"}
+            </option>
+            {destinations.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="date" className={labelClass}>
@@ -113,7 +191,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             value={date}
             min={todayIsoDate()}
             onChange={(e) => setDate(e.target.value)}
-            className={inputClass}
+            className={isHero ? "border-white/20 bg-white/95" : ""}
             required
           />
         </div>
@@ -128,7 +206,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             placeholder="CDF"
             value={maxPrice}
             onChange={(e) => setMaxPrice(e.target.value)}
-            className={inputClass}
+            className={isHero ? "border-white/20 bg-white/95" : ""}
             required
           />
         </div>
@@ -141,7 +219,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             type="time"
             value={timeFrom}
             onChange={(e) => setTimeFrom(e.target.value)}
-            className={inputClass}
+            className={isHero ? "border-white/20 bg-white/95" : ""}
           />
         </div>
         <div className="space-y-2">
@@ -153,7 +231,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             type="time"
             value={timeTo}
             onChange={(e) => setTimeTo(e.target.value)}
-            className={inputClass}
+            className={isHero ? "border-white/20 bg-white/95" : ""}
           />
         </div>
       </div>
@@ -165,11 +243,16 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
       <Button
         type="submit"
         size="lg"
+        disabled={loadingLocations || !departure || !destination}
         className={`mt-4 w-full gap-2 sm:w-auto ${
           isHero ? "bg-white text-orange-600 hover:bg-orange-50" : ""
         }`}
       >
-        <Search className="h-4 w-4" />
+        {loadingLocations ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Search className="h-4 w-4" />
+        )}
         Rechercher
       </Button>
     </form>
