@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { isCompanyAdmin, isPlatformAdmin } from "@/lib/admin-access";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingTrendChart } from "@/components/admin/BookingTrendChart";
+import { PassengerDemographicsChart } from "@/components/admin/PassengerDemographicsChart";
 
 async function getStats(companyId?: string | null) {
   const companyFilter = companyId ? { companyId } : undefined;
@@ -72,6 +73,7 @@ export default async function AdminDashboard() {
       </div>
 
       <BookingTrendChart />
+      <PassengerDemographicsChart />
     </div>
   );
 }
