@@ -117,9 +117,10 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
 
   const labelClass = isHero ? "text-orange-100" : "text-gray-700";
   const fieldClass = cn(
-    "flex h-10 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500",
-    isHero ? "border-white/20 bg-white/95" : "border-gray-300 bg-white"
+    "flex h-10 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:text-gray-500",
+    isHero ? "border-white/20 bg-white" : "border-gray-300 bg-white"
   );
+  const inputHeroClass = "border-white/20 bg-white text-gray-900 placeholder:text-gray-500";
 
   return (
     <form
@@ -191,7 +192,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             value={date}
             min={todayIsoDate()}
             onChange={(e) => setDate(e.target.value)}
-            className={isHero ? "border-white/20 bg-white/95" : ""}
+            className={isHero ? inputHeroClass : ""}
             required
           />
         </div>
@@ -206,7 +207,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             placeholder="CDF"
             value={maxPrice}
             onChange={(e) => setMaxPrice(e.target.value)}
-            className={isHero ? "border-white/20 bg-white/95" : ""}
+            className={isHero ? inputHeroClass : ""}
             required
           />
         </div>
@@ -219,7 +220,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             type="time"
             value={timeFrom}
             onChange={(e) => setTimeFrom(e.target.value)}
-            className={isHero ? "border-white/20 bg-white/95" : ""}
+            className={isHero ? inputHeroClass : ""}
           />
         </div>
         <div className="space-y-2">
@@ -231,7 +232,7 @@ export function TripSearchForm({ variant = "hero", initial }: TripSearchFormProp
             type="time"
             value={timeTo}
             onChange={(e) => setTimeTo(e.target.value)}
-            className={isHero ? "border-white/20 bg-white/95" : ""}
+            className={isHero ? inputHeroClass : ""}
           />
         </div>
       </div>
