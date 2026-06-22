@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isCompanyAdmin, isPlatformAdmin } from "@/lib/admin-access";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookingTrendChart } from "@/components/admin/BookingTrendChart";
 
 async function getStats(companyId?: string | null) {
   const companyFilter = companyId ? { companyId } : undefined;
@@ -69,6 +70,8 @@ export default async function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      <BookingTrendChart />
     </div>
   );
 }
