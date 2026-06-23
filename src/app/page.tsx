@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { Bus, MapPin, Clock, CreditCard } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TripSearchForm } from "@/components/TripSearchForm";
+import { fetchServerApi } from "@/lib/server-api";
+import type { PublicCompany } from "@/lib/types/public-company";
+
+export const dynamic = "force-dynamic";
 
 async function getCompanies() {
-  return prisma.transportCompany.findMany({
-    where: { isActive: true },
-    include: {
-      _count: { select: { routes: true, buses: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  return (
+    (await fetchServerApi<PublicCompany[]>("/api/companies?isActive=true")) ?? []
+  );
 }
 
 export default async function HomePage() {
@@ -120,7 +119,7 @@ export default async function HomePage() {
                           <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">
                             {company.name}
                           </h3>
-                          
+
                           <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-gray-500">
                             {company.description || "\u00A0"}
                           </p>

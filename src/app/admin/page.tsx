@@ -1,29 +1,28 @@
 import { Building2, Bus, MapPin, Users, CreditCard } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isCompanyAdmin, isPlatformAdmin } from "@/lib/admin-access";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingTrendChart } from "@/components/admin/BookingTrendChart";
 import { PassengerDemographicsChart } from "@/components/admin/PassengerDemographicsChart";
+import { fetchServerApi } from "@/lib/server-api";
+import type { DashboardStats } from "@/lib/types/public-company";
 
-async function getStats(companyId?: string | null) {
-  const companyFilter = companyId ? { companyId } : undefined;
-  const bookingFilter = companyId
-    ? { status: "CONFIRMED" as const, schedule: { route: { companyId } } }
-    : { status: "CONFIRMED" as const };
+export const dynamic = "force-dynamic";
 
-  const [companies, buses, routes, users, bookings] = await Promise.all([
-    companyId
-      ? prisma.transportCompany.count({ where: { id: companyId } })
-      : prisma.transportCompany.count(),
-    prisma.bus.count({ where: companyFilter }),
-    prisma.route.count({ where: companyFilter }),
-    companyId
-      ? Promise.resolve(0)
-      : prisma.user.count({ where: { role: "CLIENT" } }),
-    prisma.booking.count({ where: bookingFilter }),
-  ]);
-  return { companies, buses, routes, users, bookings };
+const EMPTY_STATS: DashboardStats = {
+  companies: 0,
+  buses: 0,
+  routes: 0,
+  users: 0,
+  bookings: 0,
+};
+
+async function getStats(token?: string | null) {
+  return (
+    (await fetchServerApi<DashboardStats>("/api/admin/analytics/dashboard-stats", {
+      token,
+    })) ?? EMPTY_STATS
+  );
 }
 
 export default async function AdminDashboard() {
@@ -31,7 +30,7 @@ export default async function AdminDashboard() {
   const role = (session?.user as { role?: string })?.role;
   const companyId = (session?.user as { companyId?: string | null })?.companyId;
   const companyName = (session?.user as { companyName?: string | null })?.companyName;
-  const stats = await getStats(isCompanyAdmin(role) ? companyId : undefined);
+  const stats = await getStats(session?.user?.backendToken);
 
   const cards = [
     ...(isPlatformAdmin(role)

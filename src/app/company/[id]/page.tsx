@@ -1,23 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Clock, ArrowRight } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
+import { fetchServerApi } from "@/lib/server-api";
+import type { PublicCompanyDetail } from "@/lib/types/public-company";
+
+export const dynamic = "force-dynamic";
 
 async function getCompanyWithRoutes(id: string) {
-  return prisma.transportCompany.findUnique({
-    where: { id, isActive: true },
-    include: {
-      routes: {
-        include: {
-          _count: { select: { schedules: true } },
-        },
-        orderBy: { departure: "asc" },
-      },
-    },
-  });
+  return fetchServerApi<PublicCompanyDetail>(`/api/companies/${encodeURIComponent(id)}`);
 }
 
 export default async function CompanyPage({
@@ -85,7 +77,7 @@ export default async function CompanyPage({
                       <span>{route._count.schedules} horaire{route._count.schedules > 1 ? "s" : ""}</span>
                     </div>
                     <span className="font-semibold text-orange-600">
-                      {formatPrice(route.price.toNumber())}
+                      {formatPrice(route.price)}
                     </span>
                   </div>
                 </CardContent>
