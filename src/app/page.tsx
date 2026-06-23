@@ -3,6 +3,7 @@ import { Bus, MapPin, Clock, CreditCard } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CompanyLogo } from "@/components/CompanyLogo";
 import { fetchServerApi } from "@/lib/server-api";
 import type { PublicCompany } from "@/lib/types/public-company";
 
@@ -108,9 +109,11 @@ export default async function HomePage() {
                   <Card className="group h-full cursor-pointer transition-all hover:shadow-md hover:border-orange-300">
                     <CardContent className="flex h-full flex-col p-6">
                       <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600 transition-colors group-hover:bg-orange-600 group-hover:text-white">
-                          <Bus className="h-7 w-7" />
-                        </div>
+                        <CompanyLogo
+                          name={company.name}
+                          logo={company.logo}
+                          className="h-14 w-14 flex-shrink-0 transition-opacity group-hover:opacity-90"
+                        />
                         <div className="flex flex-1 flex-col">
                           <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">
                             {company.name}

@@ -4,6 +4,7 @@ export type PublicCompany = {
   description: string | null;
   phone: string;
   email: string;
+  logo: string | null;
   isActive: boolean;
   _count: { routes: number; buses: number };
 };

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Clock, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { CompanyLogo } from "@/components/CompanyLogo";
 import { formatPrice } from "@/lib/utils";
 import { fetchServerApi } from "@/lib/server-api";
 import type { PublicCompanyDetail } from "@/lib/types/public-company";
@@ -29,12 +30,15 @@ export default async function CompanyPage({
         Retour aux sociétés
       </Link>
 
-      <div className="mt-6">
-        <h1 className="text-3xl font-bold text-gray-900">{company.name}</h1>
-        {company.description && (
-          <p className="mt-2 text-gray-500">{company.description}</p>
-        )}
-        <p className="mt-1 text-sm text-gray-400">{company.phone} &middot; {company.email}</p>
+      <div className="mt-6 flex items-start gap-4">
+        <CompanyLogo name={company.name} logo={company.logo} className="h-16 w-16 flex-shrink-0" />
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">{company.name}</h1>
+          {company.description && (
+            <p className="mt-2 text-gray-500">{company.description}</p>
+          )}
+          <p className="mt-1 text-sm text-gray-400">{company.phone} &middot; {company.email}</p>
+        </div>
       </div>
 
       <div className="mt-8">
