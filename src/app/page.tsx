@@ -3,7 +3,6 @@ import { Bus, MapPin, Clock, CreditCard } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TripSearchForm } from "@/components/TripSearchForm";
 import { fetchServerApi } from "@/lib/server-api";
 import type { PublicCompany } from "@/lib/types/public-company";
 
@@ -33,7 +32,7 @@ export default async function HomePage() {
               société de transport, votre destination et votre horaire.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Link href="#search">
+              <Link href="#companies">
                 <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 shadow-lg">
                   Réserver maintenant
                 </Button>
@@ -48,9 +47,6 @@ export default async function HomePage() {
                   Créer un compte
                 </Button>
               </Link>
-            </div>
-            <div id="search" className="mx-auto mt-10 max-w-4xl scroll-mt-24">
-              <TripSearchForm variant="hero" />
             </div>
           </div>
         </div>
