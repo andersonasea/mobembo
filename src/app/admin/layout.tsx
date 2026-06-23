@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { canAccessAdmin, isPlatformAdmin } from "@/lib/admin-access";
-import { Building2, Bus, MapPin, Clock, LayoutDashboard, CreditCard } from "lucide-react";
+import { Building2, Bus, MapPin, Clock, LayoutDashboard, CreditCard, UserCog } from "lucide-react";
 
 const allAdminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, platformOnly: false },
   { href: "/admin/companies", label: "Sociétés", icon: Building2, platformOnly: true },
+  { href: "/admin/company-admins", label: "Admins société", icon: UserCog, platformOnly: true },
   { href: "/admin/buses", label: "Bus", icon: Bus, platformOnly: false },
   { href: "/admin/routes", label: "Destinations", icon: MapPin, platformOnly: false },
   { href: "/admin/schedules", label: "Horaires", icon: Clock, platformOnly: false },

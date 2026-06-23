@@ -45,7 +45,8 @@ export const authConfig: NextAuthConfig = {
         if (!canAccessAdmin(role)) return Response.redirect(new URL("/", nextUrl));
         if (
           role === "COMPANY_ADMIN" &&
-          pathname.startsWith("/admin/companies")
+          (pathname.startsWith("/admin/companies") ||
+            pathname.startsWith("/admin/company-admins"))
         ) {
           return Response.redirect(new URL("/admin", nextUrl));
         }
