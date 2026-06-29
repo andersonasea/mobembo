@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, ArrowRight, Bus, Clock, Loader2, Users } from "lucide-react";
 import { TripSearchForm } from "@/components/TripSearchForm";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,14 +74,32 @@ function SearchResults() {
   }, [hasQuery, departure, destination, date, maxPrice, timeFrom, timeTo]);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <div>
+      <div className="relative h-44 overflow-hidden sm:h-52">
+        <Image
+          src="/images/marketing/waiting-bus.png"
+          alt="Voyageur consultant son téléphone à l'arrêt de bus"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-950/80 via-orange-900/50 to-transparent" />
+        <div className="relative mx-auto flex h-full max-w-5xl items-end px-4 pb-6 sm:px-6 lg:px-8">
+          <div>
+            <p className="text-sm font-medium text-orange-100">Recherche de trajets</p>
+            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">Rechercher un billet</h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-orange-600">
         <ArrowLeft className="h-4 w-4" />
         Accueil
       </Link>
 
-      <h1 className="mt-6 text-2xl font-bold text-gray-900">Rechercher un billet</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-4 text-sm text-gray-500">
         Comparez les horaires et tarifs de toutes les sociétés de transport
       </p>
 
@@ -166,6 +185,7 @@ function SearchResults() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
