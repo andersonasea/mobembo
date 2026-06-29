@@ -77,8 +77,8 @@ function SearchResults() {
     <div>
       <div className="relative h-44 overflow-hidden sm:h-52">
         <Image
-          src="/images/marketing/waiting-bus.png"
-          alt="Voyageur consultant son téléphone à l'arrêt de bus"
+          src="/images/marketing/bus-motion.png"
+          alt="Bus en route"
           fill
           priority
           sizes="100vw"

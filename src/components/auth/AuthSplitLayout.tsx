@@ -10,8 +10,8 @@ export function AuthSplitLayout({ children }: AuthSplitLayoutProps) {
       <div className="flex items-center justify-center px-4 py-12">{children}</div>
       <div className="relative hidden lg:block">
         <MarketingImage
-          src="/images/marketing/boarding-group.png"
-          alt="Passagères montant à bord d'un bus Mobembo"
+          src="/images/marketing/bus-interior.png"
+          alt="Intérieur confortable d'un bus Mobembo"
           className="h-full min-h-[calc(100vh-4rem)]"
           priority
         />

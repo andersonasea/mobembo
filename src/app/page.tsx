@@ -60,7 +60,7 @@ export default async function HomePage() {
             <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-white/20 shadow-2xl sm:aspect-[5/4] lg:aspect-[4/5]">
               <Image
                 src="/images/marketing/hero-passenger-smile.png"
-                alt="Passagère réservant son billet de bus sur Mobembo"
+                alt="Passager affichant son billet Mobembo avec QR code"
                 fill
                 priority
                 sizes="(max-width: 1024px) 90vw, 50vw"
@@ -99,81 +99,6 @@ export default async function HomePage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Journey */}
-      <section className="bg-white py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Votre voyage avec Mobembo</h2>
-            <p className="mt-2 text-gray-500">
-              De la recherche sur votre téléphone jusqu&apos;à l&apos;arrivée à destination
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
-            <div className="relative overflow-hidden rounded-2xl shadow-lg sm:col-span-2 lg:col-span-5 lg:row-span-2">
-              <MarketingImage
-                src="/images/marketing/boarding-group.png"
-                alt="Passagères montant à bord d'un bus"
-                className="aspect-[4/3] h-full min-h-[220px] lg:aspect-auto lg:min-h-[420px]"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <p className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white">
-                Montez à bord en toute simplicité
-              </p>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl shadow-md lg:col-span-3">
-              <MarketingImage
-                src="/images/marketing/waiting-bus.png"
-                alt="Voyageur consultant son téléphone à l'arrêt de bus"
-                className="aspect-[4/3]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <p className="absolute bottom-3 left-3 text-xs font-medium text-white sm:text-sm">
-                Recherchez votre trajet
-              </p>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl shadow-md lg:col-span-4">
-              <MarketingImage
-                src="/images/marketing/passenger-on-bus.png"
-                alt="Passager voyageant confortablement dans un bus"
-                className="aspect-[4/3]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <p className="absolute bottom-3 left-3 text-xs font-medium text-white sm:text-sm">
-                Voyagez sereinement
-              </p>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl shadow-md lg:col-span-3">
-              <MarketingImage
-                src="/images/marketing/boarding-enter.png"
-                alt="Professionnel montant dans un minibus"
-                className="aspect-[4/3]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <p className="absolute bottom-3 left-3 text-xs font-medium text-white sm:text-sm">
-                Embarquement rapide
-              </p>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl shadow-md lg:col-span-4">
-              <MarketingImage
-                src="/images/marketing/boarding-exit.png"
-                alt="Passagers descendant d'un minibus"
-                className="aspect-[4/3]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <p className="absolute bottom-3 left-3 text-xs font-medium text-white sm:text-sm">
-                Arrivée à destination
-              </p>
-            </div>
           </div>
         </div>
       </section>
