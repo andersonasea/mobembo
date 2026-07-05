@@ -48,8 +48,8 @@ function isPaymentFullyConfirmed(booking: BookingData): boolean {
   return booking.status === "CONFIRMED" && booking.payment?.status === "SUCCESS";
 }
 
-const POLL_STEPS_MS = [4000, 6000, 8000, 10000, 12000];
-const MAX_POLL_DURATION_MS = 90000;
+const POLL_STEPS_MS = [3000, 4000, 6000, 8000, 10000, 12000];
+const MAX_POLL_DURATION_MS = 180000;
 
 export default function PaymentPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,6 +62,8 @@ export default function PaymentPage() {
   const [paying, setPaying] = useState(false);
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [error, setError] = useState("");
 
@@ -79,6 +81,34 @@ export default function PaymentPage() {
         setLoading(false);
       });
   }, [backendToken, id]);
+
+  async function fetchBookingStatus(options?: { silent?: boolean }) {
+    if (!backendToken) return null;
+    if (!options?.silent) setCheckingStatus(true);
+    try {
+      const res = await fetch(toApiUrl(`/api/bookings/${id}`), {
+        headers: { Authorization: `Bearer ${backendToken}` },
+        cache: "no-store",
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const updatedBooking = getApiData<BookingData>(data);
+      setBooking(updatedBooking);
+      if (isPaymentFullyConfirmed(updatedBooking)) {
+        setPaymentConfirmed(true);
+        setPollTimedOut(false);
+      }
+      return updatedBooking;
+    } catch {
+      return null;
+    } finally {
+      if (!options?.silent) setCheckingStatus(false);
+    }
+  }
+
+  async function refreshBookingStatus() {
+    await fetchBookingStatus();
+  }
 
   async function handlePayment(e: React.FormEvent) {
     e.preventDefault();
@@ -111,6 +141,7 @@ export default function PaymentPage() {
 
       const bookingRes = await fetch(toApiUrl(`/api/bookings/${id}`), {
         headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
+        cache: "no-store",
       });
       if (bookingRes.ok) {
         const bookingData = await bookingRes.json();
@@ -138,23 +169,14 @@ export default function PaymentPage() {
 
     const pollOnce = async () => {
       if (cancelled) return;
-      if (Date.now() - startedAt > MAX_POLL_DURATION_MS) return;
+      if (Date.now() - startedAt > MAX_POLL_DURATION_MS) {
+        setPollTimedOut(true);
+        return;
+      }
 
-      try {
-        const res = await fetch(toApiUrl(`/api/bookings/${id}`), {
-          headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const updatedBooking = getApiData<BookingData>(data);
-          setBooking(updatedBooking);
-          if (isPaymentFullyConfirmed(updatedBooking)) {
-            setPaymentConfirmed(true);
-            return;
-          }
-        }
-      } catch {
-        // Ignore intermittent polling failures.
+      const updatedBooking = await fetchBookingStatus({ silent: true });
+      if (updatedBooking && isPaymentFullyConfirmed(updatedBooking)) {
+        return;
       }
 
       const waitMs = POLL_STEPS_MS[Math.min(step, POLL_STEPS_MS.length - 1)];
@@ -265,6 +287,25 @@ export default function PaymentPage() {
               Une demande de paiement a été envoyée sur votre téléphone.
               Confirmez-la puis patientez quelques secondes.
             </p>
+            {pollTimedOut && (
+              <p className="mt-4 text-sm text-amber-700">
+                La vérification automatique a pris plus de temps que prévu. Si vous avez déjà
+                confirmé sur votre téléphone, cliquez ci-dessous.
+              </p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4"
+              disabled={checkingStatus}
+              onClick={() => void refreshBookingStatus()}
+            >
+              {checkingStatus ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Vérifier le paiement"
+              )}
+            </Button>
           </>
         )}
         <div className="mt-8 flex justify-center gap-4">
