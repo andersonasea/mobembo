@@ -44,6 +44,10 @@ const PAYMENT_METHODS = [
   { id: "AFRI_MONEY", name: "Afri Money", color: "bg-blue-600" },
 ] as const;
 
+function isPaymentFullyConfirmed(booking: BookingData): boolean {
+  return booking.status === "CONFIRMED" && booking.payment?.status === "SUCCESS";
+}
+
 const POLL_STEPS_MS = [4000, 6000, 8000, 10000, 12000];
 const MAX_POLL_DURATION_MS = 90000;
 
@@ -105,11 +109,6 @@ export default function PaymentPage() {
         return;
       }
 
-      const paymentResult = getApiData<{
-        status: string;
-        bookingStatus?: string;
-      }>(data);
-
       const bookingRes = await fetch(toApiUrl(`/api/bookings/${id}`), {
         headers: backendToken ? { Authorization: `Bearer ${backendToken}` } : undefined,
       });
@@ -117,19 +116,9 @@ export default function PaymentPage() {
         const bookingData = await bookingRes.json();
         const updatedBooking = getApiData<BookingData>(bookingData);
         setBooking(updatedBooking);
-        if (
-          updatedBooking.status === "CONFIRMED" ||
-          updatedBooking.payment?.status === "SUCCESS" ||
-          paymentResult.bookingStatus === "CONFIRMED" ||
-          paymentResult.status === "SUCCESS"
-        ) {
+        if (isPaymentFullyConfirmed(updatedBooking)) {
           setPaymentConfirmed(true);
         }
-      } else if (
-        paymentResult.bookingStatus === "CONFIRMED" ||
-        paymentResult.status === "SUCCESS"
-      ) {
-        setPaymentConfirmed(true);
       }
 
       setPaymentInitiated(true);
@@ -159,10 +148,7 @@ export default function PaymentPage() {
           const data = await res.json();
           const updatedBooking = getApiData<BookingData>(data);
           setBooking(updatedBooking);
-          if (
-            updatedBooking.status === "CONFIRMED" ||
-            updatedBooking.payment?.status === "SUCCESS"
-          ) {
+          if (isPaymentFullyConfirmed(updatedBooking)) {
             setPaymentConfirmed(true);
             return;
           }
