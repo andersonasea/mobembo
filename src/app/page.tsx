@@ -1,6 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Bus, MapPin, Clock, CreditCard, Shield } from "lucide-react";
+import {
+  Armchair,
+  ArrowRight,
+  Building2,
+  Bus,
+  Handshake,
+  MapPinned,
+  QrCode,
+  Shield,
+  Smartphone,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +20,47 @@ import { fetchServerApi } from "@/lib/server-api";
 import type { PublicCompany } from "@/lib/types/public-company";
 
 export const dynamic = "force-dynamic";
+
+const bookingSteps = [
+  {
+    icon: Building2,
+    title: "Choisir la société de transport",
+    desc: "Comparez les transporteurs partenaires disponibles sur Mobembo.",
+  },
+  {
+    icon: MapPinned,
+    title: "Choisir le trajet / destination",
+    desc: "Sélectionnez votre ville de départ, destination et horaire.",
+  },
+  {
+    icon: Armchair,
+    title: "Choisir la place",
+    desc: "Réservez le siège qui vous convient avant le départ.",
+  },
+  {
+    icon: QrCode,
+    title: "Payer et recevoir le billet QR",
+    desc: "Payez via Mobile Money et obtenez votre billet numérique.",
+  },
+];
+
+const platformHighlights = [
+  {
+    icon: Handshake,
+    title: "Transporteurs partenaires",
+    desc: "Mobembo connecte les voyageurs aux sociétés de transport, sans se présenter comme une compagnie de bus.",
+  },
+  {
+    icon: Smartphone,
+    title: "Réservation digitale",
+    desc: "Tout le parcours se fait en ligne : choix du trajet, place, paiement et billet.",
+  },
+  {
+    icon: Shield,
+    title: "Paiement sécurisé",
+    desc: "Mobile Money et suivi du paiement pour confirmer votre réservation.",
+  },
+];
 
 async function getCompanies() {
   return (
@@ -23,24 +74,26 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-700 via-orange-600 to-amber-500 text-white">
+      <section className="relative overflow-hidden bg-slate-950 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.45),transparent_34%),linear-gradient(135deg,rgba(124,45,18,0.85),rgba(2,6,23,0.95)_58%)]" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:gap-12 lg:px-8 lg:py-24">
+        <div className="absolute -right-24 top-20 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 lg:py-24">
           <div className="text-center lg:text-left">
-            <p className="text-sm font-semibold uppercase tracking-wider text-orange-100">
-              Billetterie bus en ligne
-            </p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Voyagez avec <span className="text-amber-200">Mobembo</span>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Réservez auprès des transporteurs avec{" "}
+              <span className="text-orange-300">Mobembo</span>
             </h1>
             <p className="mt-6 text-lg leading-8 text-orange-50">
-              Réservez votre billet de bus en quelques clics. Choisissez votre
-              société de transport, votre destination et votre horaire.
+              Mobembo est une plateforme qui connecte les voyageurs aux sociétés
+              de transport partenaires : choisissez votre compagnie, votre
+              trajet, votre place, puis payez pour recevoir votre billet QR.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
               <Link href="#companies">
-                <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 shadow-lg">
+                <Button size="lg" className="bg-orange-500 text-white shadow-lg shadow-orange-950/30 hover:bg-orange-600">
                   Réserver maintenant
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/search">
@@ -54,50 +107,73 @@ export default async function HomePage() {
                 </Button>
               </Link>
             </div>
+           
           </div>
 
           <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-white/20 shadow-2xl sm:aspect-[5/4] lg:aspect-[4/5]">
+            <div className="relative aspect-4/5 overflow-hidden rounded-4xl border border-white/20 shadow-2xl shadow-black/30 sm:aspect-5/4 lg:aspect-4/5">
               <Image
                 src="/images/marketing/hero-passenger-smile.png"
-                alt="Passager affichant son billet Mobembo avec QR code"
+                alt="Voyageur utilisant une plateforme de réservation de billets"
                 fill
                 priority
                 sizes="(max-width: 1024px) 90vw, 50vw"
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-orange-950/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-slate-950/70 via-transparent to-transparent" />
+              <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/15 bg-slate-950/75 p-4 shadow-xl backdrop-blur">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-orange-300">
+                      Réserver, payer et gérer
+                    </p>
+                    <p className="mt-1 text-sm text-white">
+                      Votre billet QR généré après paiement confirmé.
+                    </p>
+                  </div>
+                  <QrCode className="h-10 w-10 text-orange-300" />
+                </div>
+              </div>
             </div>
-            <div className="absolute -bottom-4 -left-4 hidden rounded-2xl border border-white/20 bg-white/95 p-4 shadow-xl backdrop-blur sm:block">
-              <p className="text-xs font-medium text-orange-600">Paiement Mobile Money</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900">Billet confirmé en quelques secondes</p>
-            </div>
+           
           </div>
         </div>
       </section>
 
       {/* Steps */}
-      <section className="border-b border-gray-200 bg-white py-12">
+      <section className="border-b border-gray-200 bg-white py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: Bus, title: "Choisir une société", desc: "Parcourez les sociétés de transport disponibles" },
-              { icon: MapPin, title: "Choisir la destination", desc: "Sélectionnez votre trajet parmi les destinations" },
-              { icon: Clock, title: "Choisir l'horaire", desc: "Trouvez l'horaire qui vous convient le mieux" },
-              { icon: CreditCard, title: "Payer & Voyager", desc: "Payez via Mobile Money et recevez votre billet" },
-            ].map((step, i) => (
-              <div key={i} className="flex items-start gap-4">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-                  <step.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-orange-600">
-                    Étape {i + 1}
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+              Comment ça marche ?
+            </Badge>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              Un parcours simple
+            </h2>
+            <p className="mt-3 text-gray-500">
+              Mobembo vous guide étape par étape, de la société de transport au
+              billet QR final.
+            </p>
+          </div>
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {bookingSteps.map((step, i) => (
+              <Card key={step.title} className="relative overflow-hidden border-orange-100 bg-linear-to-b from-white to-orange-50/40">
+                <CardContent className="p-6">
+                  <div className="absolute right-4 top-4 text-5xl font-bold text-orange-100">
+                    {i + 1}
                   </div>
-                  <h3 className="font-semibold text-gray-900">{step.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{step.desc}</p>
-                </div>
-              </div>
+                  <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-lg shadow-orange-200">
+                  <step.icon className="h-6 w-6" />
+                  </div>
+                  <div className="relative mt-5">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-orange-600">
+                      Étape {i + 1}
+                    </div>
+                    <h3 className="mt-1 font-semibold text-gray-900">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-500">{step.desc}</p>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
@@ -110,32 +186,43 @@ export default async function HomePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <MarketingImage
                 src="/images/marketing/driver.png"
-                alt="Chauffeur professionnel Mobembo"
-                className="aspect-[4/5] rounded-2xl shadow-lg"
+                alt="Professionnel d'une société de transport partenaire"
+                className="aspect-4/5 rounded-2xl shadow-lg"
               />
               <MarketingImage
-                src="/images/marketing/bus-motion.png"
-                alt="Bus en route vers votre destination"
-                className="aspect-[4/5] rounded-2xl shadow-lg"
+                src="/images/marketing/bus-interior.png"
+                alt="Intérieur d'un bus partenaire"
+                className="aspect-4/5 rounded-2xl shadow-lg"
               />
             </div>
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-700">
-                <Shield className="h-4 w-4" />
-                Voyagez en confiance
-              </div>
+             
               <h2 className="mt-4 text-3xl font-bold text-gray-900">
-                Un service fiable, du guichet à la route
+                Une interface unique pour accéder aux transporteurs partenaires
               </h2>
               <p className="mt-4 text-gray-600">
-                Mobembo connecte les voyageurs aux sociétés de transport avec une
-                expérience simple : recherche, réservation, paiement et billet
-                numérique avec QR code.
+                Mobembo ne remplace pas les sociétés de transport : la plateforme
+                les rend plus accessibles. Vous choisissez l&apos;opérateur, la
+                destination et la place, puis vous payez en ligne pour recevoir un
+                billet QR.
               </p>
+              <div className="mt-6 grid gap-3">
+                {platformHighlights.map((item) => (
+                  <div key={item.title} className="flex gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                      <item.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-500">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <MarketingImage
                 src="/images/marketing/passengers.png"
-                alt="Passagers à bord d'un bus"
-                className="mt-8 aspect-[16/7] rounded-2xl shadow-md"
+                alt="Voyageurs utilisant Mobembo pour préparer leur déplacement"
+                className="mt-8 aspect-16/7 rounded-2xl shadow-md"
               />
             </div>
           </div>
@@ -150,7 +237,7 @@ export default async function HomePage() {
               Sociétés de Transport
             </h2>
             <p className="mt-2 text-gray-500">
-              Choisissez votre société de transport pour commencer la réservation
+              Choisissez la société partenaire avec laquelle vous souhaitez voyager
             </p>
           </div>
 
@@ -174,14 +261,14 @@ export default async function HomePage() {
                         <CompanyLogo
                           name={company.name}
                           logo={company.logo}
-                          className="h-14 w-14 flex-shrink-0 transition-opacity group-hover:opacity-90"
+                          className="h-14 w-14 shrink-0 transition-opacity group-hover:opacity-90"
                         />
                         <div className="flex flex-1 flex-col">
                           <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">
                             {company.name}
                           </h3>
 
-                          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-gray-500">
+                          <p className="mt-1 line-clamp-2 min-h-10 text-sm text-gray-500">
                             {company.description || "\u00A0"}
                           </p>
                           <div className="mt-auto flex items-center gap-2 pt-3">
@@ -189,7 +276,7 @@ export default async function HomePage() {
                               {company._count.routes} destination{company._count.routes > 1 ? "s" : ""}
                             </Badge>
                             <Badge variant="secondary">
-                              {company._count.buses} bus
+                              {company._count.buses} véhicule{company._count.buses > 1 ? "s" : ""}
                             </Badge>
                           </div>
                         </div>
