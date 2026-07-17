@@ -5,7 +5,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toApiUrl } from "@/lib/api-url";
+import { getApiErrorMessage } from "@/lib/api-response";
 
 export type PrelaunchLeadSource =
   | "GENERAL"
@@ -20,21 +20,6 @@ type PrelaunchLeadFormProps = {
   partner?: boolean;
   routeSurvey?: boolean;
 };
-
-function readErrorMessage(payload: unknown): string {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "error" in payload &&
-    payload.error &&
-    typeof payload.error === "object" &&
-    "message" in payload.error &&
-    typeof payload.error.message === "string"
-  ) {
-    return payload.error.message;
-  }
-  return "Impossible d'enregistrer votre inscription";
-}
 
 export function PrelaunchLeadForm({
   source,
@@ -57,7 +42,8 @@ export function PrelaunchLeadForm({
     const data = new FormData(form);
 
     try {
-      const response = await fetch(toApiUrl("/api/prelaunch/leads"), {
+      // Same-origin Next.js proxy → backend (uses API_URL at request time on Vercel)
+      const response = await fetch("/api/prelaunch/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -74,9 +60,21 @@ export function PrelaunchLeadForm({
           website: data.get("website"),
         }),
       });
-      const payload: unknown = await response.json();
+      const raw = await response.text();
+      let payload: unknown = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch {
+        throw new Error(
+          response.ok
+            ? "Réponse serveur invalide"
+            : "Service d'inscription indisponible. Réessayez dans un instant."
+        );
+      }
       if (!response.ok) {
-        throw new Error(readErrorMessage(payload));
+        throw new Error(
+          getApiErrorMessage(payload, "Impossible d'enregistrer votre inscription")
+        );
       }
       form.reset();
       setSuccess(true);
