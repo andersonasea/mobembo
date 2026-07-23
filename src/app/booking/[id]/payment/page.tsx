@@ -65,6 +65,8 @@ export default function PaymentPage() {
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
+  const [savingQr, setSavingQr] = useState(false);
+  const [qrSaveHint, setQrSaveHint] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -233,12 +235,62 @@ export default function PaymentPage() {
       .catch(() => setQrCodeDataUrl(""));
   }, [booking, paymentConfirmed, session?.user?.email, session?.user?.id, session?.user?.name]);
 
-  function downloadQrCode() {
+  async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    return new File([blob], filename, { type: blob.type || "image/png" });
+  }
+
+  async function saveOrShareQrCode() {
     if (!qrCodeDataUrl || !booking) return;
-    const link = document.createElement("a");
-    link.href = qrCodeDataUrl;
-    link.download = `reservation-${booking.id}.png`;
-    link.click();
+
+    const filename = `reservation-${booking.id}.png`;
+    setSavingQr(true);
+    setQrSaveHint("");
+
+    try {
+      const file = await dataUrlToFile(qrCodeDataUrl, filename);
+      const shareData: ShareData = {
+        files: [file],
+        title: "Billet Mobembo",
+        text: `Billet QR — réservation ${booking.id}`,
+      };
+
+      // iOS Safari: native share sheet (Photos / Fichiers / WhatsApp…)
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        (!navigator.canShare || navigator.canShare(shareData))
+      ) {
+        await navigator.share(shareData);
+        setQrSaveHint("QR partagé. Sur iPhone, choisissez « Enregistrer l'image ».");
+        return;
+      }
+
+      // Desktop / Android fallback: blob download (more reliable than data: URLs)
+      const objectUrl = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      setQrSaveHint("Téléchargement lancé.");
+    } catch (err) {
+      // User cancelled share, or share unsupported — open image for long-press save on iOS
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setQrSaveHint("");
+        return;
+      }
+      window.open(qrCodeDataUrl, "_blank", "noopener,noreferrer");
+      setQrSaveHint(
+        "Astuce iPhone : appuyez longuement sur le QR, puis « Ajouter à Photos »."
+      );
+    } finally {
+      setSavingQr(false);
+    }
   }
 
   if (loading) {
@@ -269,9 +321,28 @@ export default function PaymentPage() {
                   alt="QR code de la réservation"
                   className="mx-auto h-56 w-56 rounded-lg border bg-white p-2"
                 />
-                <Button onClick={downloadQrCode} className="mt-4 w-full" type="button">
-                  Télécharger le QR code
+                <p className="mt-3 text-xs text-gray-500">
+                  Sur iPhone : utilisez le bouton ci-dessous, puis « Enregistrer l&apos;image »,
+                  ou appuyez longuement sur le QR.
+                </p>
+                <Button
+                  onClick={saveOrShareQrCode}
+                  className="mt-4 w-full"
+                  type="button"
+                  disabled={savingQr}
+                >
+                  {savingQr ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Préparation…
+                    </>
+                  ) : (
+                    "Enregistrer / Partager le QR code"
+                  )}
                 </Button>
+                {qrSaveHint ? (
+                  <p className="mt-2 text-xs text-gray-600">{qrSaveHint}</p>
+                ) : null}
               </div>
             ) : (
               <p className="mt-4 text-sm text-gray-500">Génération du QR code...</p>
